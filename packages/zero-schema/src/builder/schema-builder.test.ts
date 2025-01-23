@@ -2,7 +2,7 @@
  * Relationships as secondary.
  */
 
-import {expectTypeOf, test} from 'vitest';
+import {expect, expectTypeOf, test} from 'vitest';
 import {table, number, string} from './table-builder.js';
 import {relationships} from './relationship-builder.js';
 import type {Query} from '../../../zql/src/query/query.js';
@@ -234,4 +234,45 @@ test('building a schema', () => {
       }[];
     }[]
   >();
+});
+
+test('alternate upstream names', () => {
+  const user = table('user')
+    .upstreamName('users')
+    .columns({
+      id: string().upstreamName('user_id'),
+      name: string().upstreamName('user_name'),
+      recruiterId: number().upstreamName('user_recruiter_id'),
+    })
+    .primaryKey('id');
+
+  expect(user.build()).toMatchInlineSnapshot(`
+    {
+      "columns": {
+        "id": {
+          "customType": null,
+          "optional": false,
+          "type": "string",
+          "upstreamName": "user_id",
+        },
+        "name": {
+          "customType": null,
+          "optional": false,
+          "type": "string",
+          "upstreamName": "user_name",
+        },
+        "recruiterId": {
+          "customType": null,
+          "optional": false,
+          "type": "number",
+          "upstreamName": "user_recruiter_id",
+        },
+      },
+      "name": "user",
+      "primaryKey": [
+        "id",
+      ],
+      "upstreamName": "users",
+    }
+  `);
 });

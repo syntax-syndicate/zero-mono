@@ -9,6 +9,7 @@ export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
 export type SchemaValue<T = unknown> =
   | {
       type: ValueType;
+      upstreamName?: string | undefined;
       optional?: boolean | undefined;
     }
   | EnumSchemaValue<T>
@@ -16,6 +17,7 @@ export type SchemaValue<T = unknown> =
 
 export type SchemaValueWithCustomType<T> = {
   type: ValueType;
+  upstreamName?: string | undefined;
   optional?: boolean;
   customType: T;
 };
@@ -23,12 +25,14 @@ export type SchemaValueWithCustomType<T> = {
 export type EnumSchemaValue<T> = {
   kind: 'enum';
   type: 'string';
-  optional?: boolean;
+  upstreamName?: string | undefined;
+  optional?: boolean | undefined;
   customType: T;
 };
 
 export type TableSchema = {
   readonly name: string;
+  readonly upstreamName?: string | undefined;
   readonly columns: Record<string, SchemaValue>;
   readonly primaryKey: PrimaryKey;
 };
@@ -53,8 +57,7 @@ type TypeNameToTypeMap = {
   json: any;
 };
 
-export type ColumnTypeName<T extends SchemaValue | ValueType> =
-  T extends SchemaValue ? T['type'] : T;
+export type ColumnTypeName<T extends SchemaValue> = T['type'];
 
 /**
  * Given a schema value, return the TypeScript type.
@@ -62,20 +65,17 @@ export type ColumnTypeName<T extends SchemaValue | ValueType> =
  * This allows us to create the correct return type for a
  * query that has a selection.
  */
-export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
-  T extends ValueType
-    ? TypeNameToTypeMap[T]
-    : T extends {
-        optional: true;
-      }
-    ?
-        | (T extends SchemaValueWithCustomType<infer V>
-            ? V
-            : TypeNameToTypeMap[ColumnTypeName<T>])
-        | null
-    : T extends SchemaValueWithCustomType<infer V>
-    ? V
-    : TypeNameToTypeMap[ColumnTypeName<T>];
+export type SchemaValueToTSType<T extends SchemaValue> = T extends {
+  optional: true;
+}
+  ?
+      | (T extends SchemaValueWithCustomType<infer V>
+          ? V
+          : TypeNameToTypeMap[ColumnTypeName<T>])
+      | null
+  : T extends SchemaValueWithCustomType<infer V>
+  ? V
+  : TypeNameToTypeMap[ColumnTypeName<T>];
 
 type Connection = {
   readonly sourceField: readonly string[];
