@@ -7,11 +7,11 @@
  */
 
 import {compareUTF8} from 'compare-utf8';
-import {defined} from '../../shared/src/arrays.js';
-import {assert} from '../../shared/src/asserts.js';
-import {must} from '../../shared/src/must.js';
-import * as v from '../../shared/src/valita.js';
-import {rowSchema, type Row} from './data.js';
+import {defined} from '../../shared/src/arrays.ts';
+import {assert} from '../../shared/src/asserts.ts';
+import {must} from '../../shared/src/must.ts';
+import * as v from '../../shared/src/valita.ts';
+import {rowSchema, type Row} from './data.ts';
 
 export const selectorSchema = v.string();
 export const toStaticParam = Symbol();
@@ -235,15 +235,17 @@ export type AST = {
   readonly orderBy?: Ordering | undefined;
 };
 
+export type Correlation = {
+  readonly parentField: CompoundKey;
+  readonly childField: CompoundKey;
+};
+
 export type CorrelatedSubquery = {
   /**
    * Only equality correlation are supported for now.
    * E.g., direct foreign key relationships.
    */
-  readonly correlation: {
-    parentField: CompoundKey;
-    childField: CompoundKey;
-  };
+  readonly correlation: Correlation;
   readonly subquery: AST;
   readonly system?: System | undefined;
   // If a hop in the subquery chain should be hidden from the output view.

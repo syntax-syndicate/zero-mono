@@ -1,26 +1,27 @@
 import {LogContext} from '@rocicorp/logger';
-import {assert, unreachable} from '../../../../shared/src/asserts.js';
-import {must} from '../../../../shared/src/must.js';
-import type {AST} from '../../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../../zero-protocol/src/data.js';
-import {buildPipeline} from '../../../../zql/src/builder/builder.js';
-import type {Change} from '../../../../zql/src/ivm/change.js';
-import type {Node} from '../../../../zql/src/ivm/data.js';
-import type {Input, Storage} from '../../../../zql/src/ivm/operator.js';
-import type {SourceSchema} from '../../../../zql/src/ivm/schema.js';
-import type {Source, SourceChange} from '../../../../zql/src/ivm/source.js';
+import {assert, unreachable} from '../../../../shared/src/asserts.ts';
+import {must} from '../../../../shared/src/must.ts';
+import type {AST} from '../../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../../zero-protocol/src/data.ts';
+import {buildPipeline} from '../../../../zql/src/builder/builder.ts';
+import type {Change} from '../../../../zql/src/ivm/change.ts';
+import type {Node} from '../../../../zql/src/ivm/data.ts';
+import type {Input, Storage} from '../../../../zql/src/ivm/operator.ts';
+import type {SourceSchema} from '../../../../zql/src/ivm/schema.ts';
+import type {Source, SourceChange} from '../../../../zql/src/ivm/source.ts';
 import {
   runtimeDebugFlags,
   runtimeDebugStats,
-} from '../../../../zqlite/src/runtime-debug.js';
-import {TableSource} from '../../../../zqlite/src/table-source.js';
-import {computeZqlSpecs} from '../../db/lite-tables.js';
-import type {LiteAndZqlSpec} from '../../db/specs.js';
-import type {RowKey} from '../../types/row-key.js';
-import type {SchemaVersions} from '../../types/schema-versions.js';
-import {getSubscriptionState} from '../replicator/schema/replication-state.js';
-import type {ClientGroupStorage} from './database-storage.js';
-import {type SnapshotDiff, Snapshotter} from './snapshotter.js';
+} from '../../../../zqlite/src/runtime-debug.ts';
+import {TableSource} from '../../../../zqlite/src/table-source.ts';
+import {computeZqlSpecs} from '../../db/lite-tables.ts';
+import type {LiteAndZqlSpec} from '../../db/specs.ts';
+import type {RowKey} from '../../types/row-key.ts';
+import type {SchemaVersions} from '../../types/schema-versions.ts';
+import {getSubscriptionState} from '../replicator/schema/replication-state.ts';
+import type {ClientGroupStorage} from './database-storage.ts';
+import {type SnapshotDiff, Snapshotter} from './snapshotter.ts';
+import type {LogConfig} from '../../config/zero-config.ts';
 
 export type RowAdd = {
   readonly type: 'add';
@@ -64,12 +65,14 @@ export class PipelineDriver {
   readonly #snapshotter: Snapshotter;
   readonly #storage: ClientGroupStorage;
   readonly #clientGroupID: string;
+  readonly #logConfig: LogConfig;
   #tableSpecs: Map<string, LiteAndZqlSpec> | null = null;
   #streamer: Streamer | null = null;
   #replicaVersion: string | null = null;
 
   constructor(
     lc: LogContext,
+    logConfig: LogConfig,
     snapshotter: Snapshotter,
     storage: ClientGroupStorage,
     clientGroupID: string,
@@ -78,6 +81,7 @@ export class PipelineDriver {
     this.#snapshotter = snapshotter;
     this.#storage = storage;
     this.#clientGroupID = clientGroupID;
+    this.#logConfig = logConfig;
   }
 
   /**
@@ -339,6 +343,8 @@ export class PipelineDriver {
 
     const {db} = this.#snapshotter.current();
     source = new TableSource(
+      this.#lc,
+      this.#logConfig,
       this.#clientGroupID,
       db.db,
       tableName,
@@ -484,7 +490,7 @@ class Streamer {
 
       for (const [relationship, children] of Object.entries(relationships)) {
         const childSchema = must(schema.relationships[relationship]);
-        yield* this.#streamNodes(queryHash, childSchema, op, children);
+        yield* this.#streamNodes(queryHash, childSchema, op, children());
       }
     }
   }

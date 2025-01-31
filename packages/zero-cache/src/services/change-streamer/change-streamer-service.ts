@@ -1,48 +1,49 @@
 import {LogContext} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
-import {unreachable} from '../../../../shared/src/asserts.js';
+import {unreachable} from '../../../../shared/src/asserts.ts';
 import {
   min,
   type AtLeastOne,
   type LexiVersion,
-} from '../../types/lexi-version.js';
-import type {PostgresDB} from '../../types/pg.js';
-import type {Sink, Source} from '../../types/streams.js';
-import {Subscription} from '../../types/subscription.js';
-import {orTimeout} from '../../types/timeout.js';
+} from '../../types/lexi-version.ts';
+import type {PostgresDB} from '../../types/pg.ts';
+import type {Sink, Source} from '../../types/streams.ts';
+import {Subscription} from '../../types/subscription.ts';
+import {orTimeout} from '../../types/timeout.ts';
 import {
   type ChangeStreamControl,
   type ChangeStreamData,
   type ChangeStreamMessage,
-} from '../change-source/protocol/current/downstream.js';
-import type {ChangeSourceUpstream} from '../change-source/protocol/current/upstream.js';
+} from '../change-source/protocol/current/downstream.ts';
+import type {ChangeSourceUpstream} from '../change-source/protocol/current/upstream.ts';
 import {
   DEFAULT_MAX_RETRY_DELAY_MS,
   RunningState,
   UnrecoverableError,
-} from '../running-state.js';
+} from '../running-state.ts';
 import {
   type ChangeStreamerService,
   type Downstream,
   type SubscriberContext,
-} from './change-streamer.js';
-import * as ErrorType from './error-type-enum.js';
-import {Forwarder} from './forwarder.js';
-import {initChangeStreamerSchema} from './schema/init.js';
+} from './change-streamer.ts';
+import * as ErrorType from './error-type-enum.ts';
+import {Forwarder} from './forwarder.ts';
+import {initChangeStreamerSchema} from './schema/init.ts';
 import {
   AutoResetSignal,
   ensureReplicationConfig,
   markResetRequired,
   type ReplicationConfig,
-} from './schema/tables.js';
-import {Storer} from './storer.js';
-import {Subscriber} from './subscriber.js';
+} from './schema/tables.ts';
+import {Storer} from './storer.ts';
+import {Subscriber} from './subscriber.ts';
 
 /**
  * Performs initialization and schema migrations to initialize a ChangeStreamerImpl.
  */
 export async function initializeStreamer(
   lc: LogContext,
+  taskID: string,
   changeDB: PostgresDB,
   changeSource: ChangeSource,
   replicationConfig: ReplicationConfig,
@@ -56,6 +57,7 @@ export async function initializeStreamer(
   const {replicaVersion} = replicationConfig;
   return new ChangeStreamerImpl(
     lc,
+    taskID,
     changeDB,
     replicaVersion,
     changeSource,
@@ -267,6 +269,7 @@ class ChangeStreamerImpl implements ChangeStreamerService {
 
   constructor(
     lc: LogContext,
+    taskID: string,
     changeDB: PostgresDB,
     replicaVersion: string,
     source: ChangeSource,
@@ -280,6 +283,7 @@ class ChangeStreamerImpl implements ChangeStreamerService {
     this.#source = source;
     this.#storer = new Storer(
       lc,
+      taskID,
       changeDB,
       replicaVersion,
       consumed => this.#stream?.acks.push(['status', consumed[1], consumed[2]]),
@@ -299,27 +303,22 @@ class ChangeStreamerImpl implements ChangeStreamerService {
     }
     this.#lc.info?.('starting change stream');
 
-    let storerRunning = false;
+    // Once this change-streamer acquires "ownership" of the change DB,
+    // it is safe to start the storer.
+    await this.#storer.assumeOwnership();
+    // The storer will, in turn, detect changes to ownership and stop
+    // the change-streamer appropriately.
+    this.#storer.run().catch(e => this.stop(e));
 
     while (this.#state.shouldRun()) {
       let err: unknown;
       try {
-        const startAfter = await this.#storer.getLastStoredWatermark();
-        const stream = await this.#source.startStream(
-          startAfter ?? this.#replicaVersion,
-        );
+        const startAfter = await this.#storer.getLastWatermark();
+        const stream = await this.#source.startStream(startAfter);
         this.#stream = stream;
         this.#state.resetBackoff();
 
         let watermark: string | null = null;
-
-        // Once this change-streamer "owns" the replication stream,
-        // it is safe to start the storer, given the guarantee that this
-        // process is the single writer to the change DB.
-        if (!storerRunning) {
-          this.#storer.run().catch(e => this.stop(e));
-          storerRunning = true;
-        }
 
         for await (const change of stream.changes) {
           const [type, msg] = change;

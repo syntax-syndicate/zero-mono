@@ -3,24 +3,25 @@ import type {LogContext} from '@rocicorp/logger';
 import type {
   PatchOperationInternal,
   PokeInternal,
-} from '../../../replicache/src/impl.js';
-import type {ClientID, PatchOperation} from '../../../replicache/src/mod.js';
-import {getBrowserGlobalMethod} from '../../../shared/src/browser-env.js';
+} from '../../../replicache/src/impl.ts';
+import type {PatchOperation} from '../../../replicache/src/patch-operation.ts';
+import type {ClientID} from '../../../replicache/src/sync/ids.ts';
+import {getBrowserGlobalMethod} from '../../../shared/src/browser-env.ts';
+import type {ClientsPatchOp} from '../../../zero-protocol/src/clients-patch.ts';
 import type {
-  ClientsPatchOp,
   PokeEndBody,
   PokePartBody,
   PokeStartBody,
-  QueriesPatchOp,
-  RowPatchOp,
-} from '../../../zero-protocol/src/mod.js';
+} from '../../../zero-protocol/src/poke.ts';
+import type {QueriesPatchOp} from '../../../zero-protocol/src/queries-patch.ts';
+import type {RowPatchOp} from '../../../zero-protocol/src/row-patch.ts';
+import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import {
   toClientsKey,
   toDesiredQueriesKey,
   toGotQueriesKey,
   toPrimaryKeyString,
-} from './keys.js';
-import type {Schema} from '../../../zero-schema/src/builder/schema-builder.js';
+} from './keys.ts';
 
 type PokeAccumulator = {
   readonly pokeStart: PokeStartBody;
@@ -96,7 +97,7 @@ export class PokeHandler {
     return pokePart.lastMutationIDChanges?.[this.#clientID];
   }
 
-  handlePokeEnd(pokeEnd: PokeEndBody) {
+  handlePokeEnd(pokeEnd: PokeEndBody): void {
     if (pokeEnd.pokeID !== this.#receivingPoke?.pokeStart.pokeID) {
       this.#handlePokeError(
         `pokeEnd for ${pokeEnd.pokeID}, when receiving ${this.#receivingPoke

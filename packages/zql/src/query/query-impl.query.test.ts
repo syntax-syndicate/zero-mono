@@ -1,17 +1,19 @@
 import {describe, expect, test} from 'vitest';
-import {deepClone} from '../../../shared/src/deep-clone.js';
-import {must} from '../../../shared/src/must.js';
-import {newQuery, type QueryDelegate, QueryImpl} from './query-impl.js';
-import type {AdvancedQuery} from './query-internal.js';
-import {QueryDelegateImpl} from './test/query-delegate.js';
-import {schema} from './test/test-schemas.js';
-import {number, table} from '../../../zero-schema/src/builder/table-builder.js';
-import {relationships} from '../../../zero-schema/src/builder/relationship-builder.js';
+import {deepClone} from '../../../shared/src/deep-clone.ts';
+import {must} from '../../../shared/src/must.ts';
+import {relationships} from '../../../zero-schema/src/builder/relationship-builder.ts';
 import {
   createSchema,
   type Schema,
-} from '../../../zero-schema/src/builder/schema-builder.js';
-import {createSource} from '../ivm/test/source-factory.js';
+} from '../../../zero-schema/src/builder/schema-builder.ts';
+import {number, table} from '../../../zero-schema/src/builder/table-builder.ts';
+import {createSource} from '../ivm/test/source-factory.ts';
+import {newQuery, type QueryDelegate, QueryImpl} from './query-impl.ts';
+import type {AdvancedQuery} from './query-internal.ts';
+import {QueryDelegateImpl} from './test/query-delegate.ts';
+import {schema} from './test/test-schemas.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
 
 /**
  * Some basic manual tests to get us started.
@@ -27,6 +29,14 @@ import {createSource} from '../ivm/test/source-factory.js';
  * and the generative testing will cover more than we can possibly
  * write by hand.
  */
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 function addData(queryDelegate: QueryDelegate) {
   const userSource = must(queryDelegate.getSource('user'));
@@ -906,18 +916,6 @@ test('null compare', () => {
   addData(queryDelegate);
 
   let rows = newQuery(queryDelegate, schema, 'issue')
-    .where('ownerId', '=', null)
-    .run();
-
-  expect(rows).toEqual([]);
-
-  rows = newQuery(queryDelegate, schema, 'issue')
-    .where('ownerId', '!=', null)
-    .run();
-
-  expect(rows).toEqual([]);
-
-  rows = newQuery(queryDelegate, schema, 'issue')
     .where('ownerId', 'IS', null)
     .run();
 
@@ -1025,8 +1023,20 @@ test('join with compound keys', () => {
   });
 
   const sources = {
-    a: createSource('a', schema.tables.a.columns, schema.tables.a.primaryKey),
-    b: createSource('b', schema.tables.b.columns, schema.tables.b.primaryKey),
+    a: createSource(
+      lc,
+      logConfig,
+      'a',
+      schema.tables.a.columns,
+      schema.tables.a.primaryKey,
+    ),
+    b: createSource(
+      lc,
+      logConfig,
+      'b',
+      schema.tables.b.columns,
+      schema.tables.b.primaryKey,
+    ),
   };
 
   const queryDelegate = new QueryDelegateImpl(sources);

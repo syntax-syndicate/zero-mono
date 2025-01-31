@@ -5,8 +5,8 @@ import SQLite3Database, {
   type RunResult,
   type Statement as SQLite3Statement,
 } from '@rocicorp/zero-sqlite3';
-import {manualSpan} from '../../otel/src/span.js';
-import {version} from '../../otel/src/version.js';
+import {manualSpan} from '../../otel/src/span.ts';
+import {version} from '../../otel/src/version.ts';
 
 const tracer = trace.getTracer('view-syncer', version);
 
@@ -72,6 +72,16 @@ export class Database {
   }
 
   close(): void {
+    const start = Date.now();
+    try {
+      this.#db.pragma('optimize');
+      const elapsed = Date.now() - start;
+      if (elapsed > 2) {
+        this.#lc.debug?.(`PRAGMA optimized (${elapsed} ms)`);
+      }
+    } catch (e) {
+      this.#lc.warn?.('error running PRAGMA optimize', e);
+    }
     this.#db.close();
   }
 

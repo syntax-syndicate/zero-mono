@@ -1,7 +1,7 @@
 import {stripVTControlCharacters as stripAnsi} from 'node:util';
 import {expect, test, vi} from 'vitest';
-import {parseOptions} from '../../../../shared/src/options.js';
-import {getMultiZeroConfig, multiConfigSchema} from './config.js';
+import {parseOptions} from '../../../../shared/src/options.ts';
+import {getMultiZeroConfig, multiConfigSchema} from './config.ts';
 
 test('parse options', () => {
   expect(
@@ -69,7 +69,9 @@ test('parse options', () => {
         },
         "log": {
           "format": "text",
+          "ivmSampling": 5000,
           "level": "info",
+          "slowRowThreshold": 2,
         },
         "perUserMutationLimit": {
           "windowMs": 60000,
@@ -119,6 +121,7 @@ test('parse options', () => {
         "upstream": {
           "db": "foo",
           "maxConns": 20,
+          "type": "pg",
         },
       },
       "env": {
@@ -129,7 +132,9 @@ test('parse options', () => {
         "ZERO_LITESTREAM_CONFIG_PATH": "./src/services/litestream/config.yml",
         "ZERO_LITESTREAM_LOG_LEVEL": "warn",
         "ZERO_LOG_FORMAT": "text",
+        "ZERO_LOG_IVM_SAMPLING": "5000",
         "ZERO_LOG_LEVEL": "info",
+        "ZERO_LOG_SLOW_ROW_THRESHOLD": "2",
         "ZERO_PER_USER_MUTATION_LIMIT_WINDOW_MS": "60000",
         "ZERO_PORT": "4848",
         "ZERO_SCHEMA_FILE": "zero-schema.json",
@@ -138,6 +143,7 @@ test('parse options', () => {
         "ZERO_TENANTS_JSON": "{"tenants":[{"id":"ten-boo","host":"Normalize.ME","path":"tenboo","env":{"ZERO_REPLICA_FILE":"tenboo.db","ZERO_CVR_DB":"foo","ZERO_CHANGE_DB":"foo","ZERO_SHARD_ID":"foo"}},{"id":"ten_bar","path":"/tenbar","env":{"ZERO_REPLICA_FILE":"tenbar.db","ZERO_CVR_DB":"bar","ZERO_CHANGE_DB":"bar","ZERO_SHARD_ID":"bar"}},{"id":"tenbaz-123","path":"/tenbaz","env":{"ZERO_REPLICA_FILE":"tenbar.db","ZERO_UPSTREAM_DB":"overridden","ZERO_CVR_DB":"baz","ZERO_CHANGE_DB":"baz","ZERO_SHARD_ID":"foo"}}]}",
         "ZERO_UPSTREAM_DB": "foo",
         "ZERO_UPSTREAM_MAX_CONNS": "20",
+        "ZERO_UPSTREAM_TYPE": "pg",
       },
     }
   `);
@@ -257,7 +263,7 @@ test('zero-cache --help', () => {
                                                    replication stream.                                                                               
                                                                                                                                                      
                                                    Note that this number must allow for at least one connection per                                  
-                                                   sync worker, or zero-cache will fail to start. See --numSyncWorkers                               
+                                                   sync worker, or zero-cache will fail to start. See num-sync-workers                               
                                                                                                                                                      
      --cvr-db string                               required                                                                                          
        ZERO_CVR_DB env                                                                                                                               
@@ -272,7 +278,7 @@ test('zero-cache --help', () => {
                                                    This is divided evenly amongst sync workers.                                                      
                                                                                                                                                      
                                                    Note that this number must allow for at least one connection per                                  
-                                                   sync worker, or zero-cache will fail to start. See --numSyncWorkers                               
+                                                   sync worker, or zero-cache will fail to start. See num-sync-workers                               
                                                                                                                                                      
      --query-hydration-stats boolean               optional                                                                                          
        ZERO_QUERY_HYDRATION_STATS env                                                                                                                
@@ -318,6 +324,14 @@ test('zero-cache --help', () => {
                                                    The URL of the trace collector to which to send trace data. Traces are sent over http.            
                                                    Port defaults to 4318 for most collectors.                                                        
                                                                                                                                                      
+     --log-slow-row-threshold number               default: 2                                                                                        
+       ZERO_LOG_SLOW_ROW_THRESHOLD env                                                                                                               
+                                                   The number of ms a row must take to fetch from table-source before it is considered slow.         
+                                                                                                                                                     
+     --log-ivm-sampling number                     default: 5000                                                                                     
+       ZERO_LOG_IVM_SAMPLING env                                                                                                                     
+                                                   How often to collect IVM metrics. 1 out of N requests will be sampled where N is this value.      
+                                                                                                                                                     
      --shard-id string                             default: "0"                                                                                      
        ZERO_SHARD_ID env                                                                                                                             
                                                    Unique identifier for the zero-cache shard.                                                       
@@ -362,8 +376,7 @@ test('zero-cache --help', () => {
                                                                                                                                                      
      --port number                                 default: 4848                                                                                     
        ZERO_PORT env                                                                                                                                 
-                                                   The main port for client connections.                                                             
-                                                   Internally, zero-cache will also listen on the 2 ports after --port.                              
+                                                   The port for sync connections.                                                                    
                                                                                                                                                      
      --change-streamer-port number                 optional                                                                                          
        ZERO_CHANGE_STREAMER_PORT env                                                                                                                 
@@ -372,16 +385,6 @@ test('zero-cache --help', () => {
                                                    runs in the same process in local development.                                                    
                                                                                                                                                      
                                                    If unspecified, defaults to --port + 1.                                                           
-                                                                                                                                                     
-     --heartbeat-monitor-port number               optional                                                                                          
-       ZERO_HEARTBEAT_MONITOR_PORT env                                                                                                               
-                                                   The port on which the heartbeat monitor listens for heartbeat                                     
-                                                   health checks. Once health checks are received at this port,                                      
-                                                   the monitor considers it a keepalive signal and triggers a drain                                  
-                                                   if health checks stop for more than 15 seconds. If health checks                                  
-                                                   never arrive on this port, the monitor does nothing (i.e. opt-in).                                
-                                                                                                                                                     
-                                                   If unspecified, defaults to --port + 2.                                                           
                                                                                                                                                      
      --task-id string                              optional                                                                                          
        ZERO_TASK_ID env                                                                                                                              

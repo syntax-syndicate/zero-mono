@@ -1,86 +1,88 @@
 import {LogContext, type LogLevel} from '@rocicorp/logger';
 import {type Resolver, resolver} from '@rocicorp/resolver';
+import type {NoIndexDiff} from '../../../replicache/src/btree/node.ts';
 import {
   ReplicacheImpl,
   type ReplicacheImplOptions,
-} from '../../../replicache/src/impl.js';
-import {
-  type ClientGroupID,
-  type ClientID,
-  type ExperimentalNoIndexDiff,
-  type MutatorDefs,
-  type PullRequest,
-  type Puller,
-  type PullerResult,
-  type PushRequest,
-  type Pusher,
-  type PusherResult,
-  type ReplicacheOptions,
-  type UpdateNeededReason as ReplicacheUpdateNeededReason,
-  dropDatabase,
-} from '../../../replicache/src/mod.js';
-import {assert, unreachable} from '../../../shared/src/asserts.js';
+} from '../../../replicache/src/impl.ts';
+import {dropDatabase} from '../../../replicache/src/persist/collect-idb-databases.ts';
+import type {Puller, PullerResult} from '../../../replicache/src/puller.ts';
+import type {Pusher, PusherResult} from '../../../replicache/src/pusher.ts';
+import type {ReplicacheOptions} from '../../../replicache/src/replicache-options.ts';
+import type {
+  ClientGroupID,
+  ClientID,
+} from '../../../replicache/src/sync/ids.ts';
+import type {PullRequest} from '../../../replicache/src/sync/pull.ts';
+import type {PushRequest} from '../../../replicache/src/sync/push.ts';
+import type {
+  MutatorDefs,
+  UpdateNeededReason as ReplicacheUpdateNeededReason,
+} from '../../../replicache/src/types.ts';
+import {assert, unreachable} from '../../../shared/src/asserts.ts';
 import {
   getBrowserGlobal,
   mustGetBrowserGlobal,
-} from '../../../shared/src/browser-env.js';
-import {getDocumentVisibilityWatcher} from '../../../shared/src/document-visible.js';
-import type {Enum} from '../../../shared/src/enum.js';
-import {must} from '../../../shared/src/must.js';
-import {navigator} from '../../../shared/src/navigator.js';
-import {sleep, sleepWithAbort} from '../../../shared/src/sleep.js';
-import * as valita from '../../../shared/src/valita.js';
-import type {ChangeDesiredQueriesMessage} from '../../../zero-protocol/src/change-desired-queries.js';
-import * as ErrorKind from '../../../zero-protocol/src/error-kind-enum.js';
-import {
-  type CRUDMutation,
-  type CRUDMutationArg,
-  CRUD_MUTATION_NAME,
-  type ConnectedMessage,
-  type CustomMutation,
-  type Downstream,
-  type ErrorMessage,
-  type NullableVersion,
-  type PingMessage,
-  type PokeEndMessage,
-  type PokePartMessage,
-  type PokeStartMessage,
-  type PushMessage,
-  type QueriesPatchOp,
-  downstreamSchema,
-  encodeSecProtocols,
-  nullableVersionSchema,
-} from '../../../zero-protocol/src/mod.js';
-import * as MutationType from '../../../zero-protocol/src/mutation-type-enum.js';
-import {PROTOCOL_VERSION} from '../../../zero-protocol/src/protocol-version.js';
+} from '../../../shared/src/browser-env.ts';
+import {getDocumentVisibilityWatcher} from '../../../shared/src/document-visible.ts';
+import type {Enum} from '../../../shared/src/enum.ts';
+import {must} from '../../../shared/src/must.ts';
+import {navigator} from '../../../shared/src/navigator.ts';
+import {sleep, sleepWithAbort} from '../../../shared/src/sleep.ts';
+import * as valita from '../../../shared/src/valita.ts';
+import type {ChangeDesiredQueriesMessage} from '../../../zero-protocol/src/change-desired-queries.ts';
+import type {ConnectedMessage} from '../../../zero-protocol/src/connect.ts';
+import {encodeSecProtocols} from '../../../zero-protocol/src/connect.ts';
+import type {Downstream} from '../../../zero-protocol/src/down.ts';
+import {downstreamSchema} from '../../../zero-protocol/src/down.ts';
+import * as ErrorKind from '../../../zero-protocol/src/error-kind-enum.ts';
+import type {ErrorMessage} from '../../../zero-protocol/src/error.ts';
+import * as MutationType from '../../../zero-protocol/src/mutation-type-enum.ts';
+import type {PingMessage} from '../../../zero-protocol/src/ping.ts';
+import type {
+  PokeEndMessage,
+  PokePartMessage,
+  PokeStartMessage,
+} from '../../../zero-protocol/src/poke.ts';
+import {PROTOCOL_VERSION} from '../../../zero-protocol/src/protocol-version.ts';
 import type {
   PullRequestMessage,
   PullResponseBody,
   PullResponseMessage,
-} from '../../../zero-protocol/src/pull.js';
-import type {Schema} from '../../../zero-schema/src/mod.js';
-import {newQuery} from '../../../zql/src/query/query-impl.js';
-import type {Query} from '../../../zql/src/query/query.js';
-import {nanoid} from '../util/nanoid.js';
-import {send} from '../util/socket.js';
-import * as ConnectionState from './connection-state-enum.js';
-import {ZeroContext} from './context.js';
+} from '../../../zero-protocol/src/pull.ts';
+import type {
+  CRUDMutation,
+  CRUDMutationArg,
+  CustomMutation,
+  PushMessage,
+} from '../../../zero-protocol/src/push.ts';
+import {CRUD_MUTATION_NAME} from '../../../zero-protocol/src/push.ts';
+import type {QueriesPatchOp} from '../../../zero-protocol/src/queries-patch.ts';
+import type {NullableVersion} from '../../../zero-protocol/src/version.ts';
+import {nullableVersionSchema} from '../../../zero-protocol/src/version.ts';
+import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import {newQuery} from '../../../zql/src/query/query-impl.ts';
+import type {Query} from '../../../zql/src/query/query.ts';
+import {nanoid} from '../util/nanoid.ts';
+import {send} from '../util/socket.ts';
+import * as ConnectionState from './connection-state-enum.ts';
+import {ZeroContext} from './context.ts';
 import {
   type BatchMutator,
   type DBMutator,
   type WithCRUD,
   makeCRUDMutate,
   makeCRUDMutator,
-} from './crud.js';
-import {shouldEnableAnalytics} from './enable-analytics.js';
+} from './crud.ts';
+import {shouldEnableAnalytics} from './enable-analytics.ts';
 import {
   type HTTPString,
   type WSString,
   appendPath,
   toWSString,
-} from './http-string.js';
-import {ENTITIES_KEY_PREFIX} from './keys.js';
-import {type LogOptions, createLogOptions} from './log-options.js';
+} from './http-string.ts';
+import {ENTITIES_KEY_PREFIX} from './keys.ts';
+import {type LogOptions, createLogOptions} from './log-options.ts';
 import {
   DID_NOT_CONNECT_VALUE,
   type DisconnectReason,
@@ -88,29 +90,35 @@ import {
   REPORT_INTERVAL_MS,
   type Series,
   getLastConnectErrorValue,
-} from './metrics.js';
+} from './metrics.ts';
 import type {
   UpdateNeededReason,
   ZeroAdvancedOptions,
   ZeroOptions,
-} from './options.js';
-import * as PingResult from './ping-result-enum.js';
-import {QueryManager} from './query-manager.js';
+} from './options.ts';
+import * as PingResult from './ping-result-enum.ts';
+import {QueryManager} from './query-manager.ts';
 import {
   reloadScheduled,
   reloadWithReason,
   reportReloadReason,
   resetBackoff,
-} from './reload-error-handler.js';
+} from './reload-error-handler.ts';
 import {
   ServerError,
   isAuthError,
   isBackoffError,
   isServerError,
-} from './server-error.js';
-import {getServer} from './server-option.js';
-import {version} from './version.js';
-import {PokeHandler} from './zero-poke-handler.js';
+} from './server-error.ts';
+import {getServer} from './server-option.ts';
+import {version} from './version.ts';
+import {PokeHandler} from './zero-poke-handler.ts';
+import {
+  makeReplicacheMutator,
+  type CustomMutatorDefs,
+  type CustomMutatorImpl,
+  type MakeCustomMutatorInterfaces,
+} from './custom.ts';
 
 type ConnectionState = Enum<typeof ConnectionState>;
 type PingResult = Enum<typeof PingResult>;
@@ -146,7 +154,10 @@ interface TestZero {
   }) => LogOptions;
 }
 
-function asTestZero<S extends Schema>(z: Zero<S>): TestZero {
+function asTestZero<
+  S extends Schema,
+  MD extends CustomMutatorDefs<S> | undefined,
+>(z: Zero<S, MD>): TestZero {
   return z as TestZero;
 }
 
@@ -237,7 +248,10 @@ export function getInternalReplicacheImplForTesting<
   return must(internalReplicacheImplMap.get(z)) as ReplicacheImpl<MD>;
 }
 
-export class Zero<const S extends Schema> {
+export class Zero<
+  const S extends Schema,
+  MD extends CustomMutatorDefs<S> | undefined = undefined,
+> {
   readonly version = version;
 
   readonly #rep: ReplicacheImpl<WithCRUD<MutatorDefs>>;
@@ -339,7 +353,7 @@ export class Zero<const S extends Schema> {
   // 2. client successfully connects
   #totalToConnectStart: number | undefined = undefined;
 
-  readonly #options: ZeroOptions<S>;
+  readonly #options: ZeroOptions<S, MD>;
 
   readonly query: MakeEntityQueriesFromSchema<S>;
 
@@ -354,7 +368,7 @@ export class Zero<const S extends Schema> {
   /**
    * Constructs a new Zero client.
    */
-  constructor(options: ZeroOptions<S>) {
+  constructor(options: ZeroOptions<S, MD>) {
     const {
       userID,
       storageKey,
@@ -393,8 +407,19 @@ export class Zero<const S extends Schema> {
     const logOptions = this.#logOptions;
 
     const replicacheMutators = {
-      ['_zero_crud']: makeCRUDMutator(schema),
+      [CRUD_MUTATION_NAME]: makeCRUDMutator(schema),
     };
+
+    for (const [namespace, mutatorsForNamespace] of Object.entries(
+      options.mutators ?? {},
+    )) {
+      for (const [name, mutator] of Object.entries(
+        mutatorsForNamespace as Record<string, CustomMutatorImpl<Schema>>,
+      )) {
+        (replicacheMutators as MutatorDefs)[customMutatorKey(namespace, name)] =
+          makeReplicacheMutator(mutator, schema);
+      }
+    }
 
     this.storageKey = storageKey ?? '';
 
@@ -461,7 +486,24 @@ export class Zero<const S extends Schema> {
     this.#onClientStateNotFound = onClientStateNotFoundCallback;
     this.#rep.onClientStateNotFound = onClientStateNotFoundCallback;
 
-    const {mutate, mutateBatch} = makeCRUDMutate<S>(schema, rep.mutate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const {mutate, mutateBatch} = makeCRUDMutate<S>(schema, rep.mutate) as any;
+
+    for (const [namespace, mutatorsForNamespace] of Object.entries(
+      options.mutators ?? {},
+    )) {
+      let existing = mutate[namespace];
+      if (existing === undefined) {
+        existing = {};
+        mutate[namespace] = existing;
+      }
+
+      for (const name of Object.keys(
+        mutatorsForNamespace as Record<string, CustomMutatorImpl<Schema>>,
+      )) {
+        existing[name] = must(rep.mutate[customMutatorKey(namespace, name)]);
+      }
+    }
     this.mutate = mutate;
     this.mutateBatch = mutateBatch;
 
@@ -479,7 +521,7 @@ export class Zero<const S extends Schema> {
     );
 
     rep.experimentalWatch(
-      diff => this.#zeroContext.processChanges(diff as ExperimentalNoIndexDiff),
+      diff => this.#zeroContext.processChanges(diff as NoIndexDiff),
       {
         prefix: ENTITIES_KEY_PREFIX,
         initialValuesInFirstDiff: true,
@@ -605,7 +647,9 @@ export class Zero<const S extends Schema> {
    * await zero.mutate.issue.update({id: '1', title: 'Updated title'});
    * ```
    */
-  readonly mutate: DBMutator<S>;
+  readonly mutate: MD extends CustomMutatorDefs<S>
+    ? DBMutator<S> & MakeCustomMutatorInterfaces<S, MD>
+    : DBMutator<S>;
 
   /**
    * Provides a way to batch multiple CRUD mutations together:
@@ -704,9 +748,11 @@ export class Zero<const S extends Schema> {
 
       case 'pull':
         return this.#handlePullResponse(lc, downMessage);
+
       case 'warm':
         // we ignore warming messages
         break;
+
       default:
         msgType satisfies never;
         rejectInvalidMessage();
@@ -1044,15 +1090,15 @@ export class Zero<const S extends Schema> {
     this.#pokeHandler.handleDisconnect();
   }
 
-  async #handlePokeStart(_lc: LogContext, pokeMessage: PokeStartMessage) {
+  #handlePokeStart(_lc: LogContext, pokeMessage: PokeStartMessage): void {
     resetBackoff();
     this.#abortPingTimeout();
-    await this.#pokeHandler.handlePokeStart(pokeMessage[1]);
+    this.#pokeHandler.handlePokeStart(pokeMessage[1]);
   }
 
-  async #handlePokePart(_lc: LogContext, pokeMessage: PokePartMessage) {
+  #handlePokePart(_lc: LogContext, pokeMessage: PokePartMessage): void {
     this.#abortPingTimeout();
-    const lastMutationIDChangeForSelf = await this.#pokeHandler.handlePokePart(
+    const lastMutationIDChangeForSelf = this.#pokeHandler.handlePokePart(
       pokeMessage[1],
     );
     if (lastMutationIDChangeForSelf !== undefined) {
@@ -1060,12 +1106,12 @@ export class Zero<const S extends Schema> {
     }
   }
 
-  async #handlePokeEnd(_lc: LogContext, pokeMessage: PokeEndMessage) {
+  #handlePokeEnd(_lc: LogContext, pokeMessage: PokeEndMessage): void {
     this.#abortPingTimeout();
-    await this.#pokeHandler.handlePokeEnd(pokeMessage[1]);
+    this.#pokeHandler.handlePokeEnd(pokeMessage[1]);
   }
 
-  #onPokeError() {
+  #onPokeError(): void {
     const lc = this.#lc;
     lc.info?.(
       'poke error, disconnecting?',
@@ -1085,7 +1131,7 @@ export class Zero<const S extends Schema> {
   #handlePullResponse(
     lc: LogContext,
     pullResponseMessage: PullResponseMessage,
-  ) {
+  ): void {
     this.#abortPingTimeout();
     const body = pullResponseMessage[1];
     lc = lc.withContext('requestID', body.requestID);
@@ -1691,3 +1737,7 @@ class TimedOutError extends Error {
 }
 
 class CloseError extends Error {}
+
+function customMutatorKey(namespace: string, name: string) {
+  return `${namespace}.${name}`;
+}

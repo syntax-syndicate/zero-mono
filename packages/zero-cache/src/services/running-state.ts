@@ -1,9 +1,9 @@
 import {LogContext} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
-import {AbortError} from '../../../shared/src/abort-error.js';
-import {sleepWithAbort} from '../../../shared/src/sleep.js';
+import {AbortError} from '../../../shared/src/abort-error.ts';
+import {sleepWithAbort} from '../../../shared/src/sleep.ts';
 
-const DEFAULT_INITIAL_RETRY_DELAY_MS = 100;
+const DEFAULT_INITIAL_RETRY_DELAY_MS = 25;
 export const DEFAULT_MAX_RETRY_DELAY_MS = 10000;
 
 export type RetryConfig = {
@@ -133,18 +133,15 @@ export class RunningState {
    *
    * If the supplied `err` is an `AbortError`, the service will shut down.
    */
-  async backoff(lc: LogContext, err?: unknown): Promise<void> {
+  async backoff(lc: LogContext, err: unknown): Promise<void> {
     const delay = this.#retryDelay;
     this.#retryDelay = Math.min(delay * 2, this.#maxRetryDelay);
 
     if (err instanceof AbortError || err instanceof UnrecoverableError) {
       this.stop(lc, err);
     } else if (this.shouldRun()) {
-      if (err) {
-        lc.error?.(`retrying ${this.#serviceName} in ${delay} ms`, err);
-      } else {
-        lc.info?.(`retrying ${this.#serviceName} in ${delay} ms`);
-      }
+      const log = delay < 1000 ? 'info' : delay < 5000 ? 'warn' : 'error';
+      lc[log]?.(`retrying ${this.#serviceName} in ${delay} ms`, err);
       await Promise.race(this.#sleep(delay, this.#controller.signal));
     }
   }

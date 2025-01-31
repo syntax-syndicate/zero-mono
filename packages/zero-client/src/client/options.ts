@@ -1,12 +1,16 @@
 import type {LogLevel} from '@rocicorp/logger';
-import type {KVStoreProvider} from '../../../replicache/src/mod.js';
-import type {MaybePromise} from '../../../shared/src/types.js';
-import type {Schema} from '../../../zero-schema/src/mod.js';
+import type {StoreProvider} from '../../../replicache/src/kv/store.ts';
+import type {MaybePromise} from '../../../shared/src/types.ts';
+import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import type {CustomMutatorDefs} from './custom.ts';
 
 /**
- * Configuration for [[Zero]].
+ * Configuration for {@linkcode Zero}.
  */
-export interface ZeroOptions<S extends Schema> {
+export interface ZeroOptions<
+  S extends Schema,
+  MD extends CustomMutatorDefs<S> | undefined = undefined,
+> {
   /**
    * URL to the zero-cache. This can be a simple hostname, e.g.
    * - "https://myapp-myteam.zero.ms"
@@ -73,6 +77,8 @@ export interface ZeroOptions<S extends Schema> {
    */
   schema: S;
 
+  mutators?: MD;
+
   /**
    * `onOnlineChange` is called when the Zero instance's online status changes.
    */
@@ -129,7 +135,7 @@ export interface ZeroOptions<S extends Schema> {
    * You can also set this to a function that is used to create new KV stores,
    * allowing a custom implementation of the underlying storage layer.
    */
-  kvStore?: 'mem' | 'idb' | KVStoreProvider | undefined;
+  kvStore?: 'mem' | 'idb' | StoreProvider | undefined;
 
   /**
    * The maximum number of bytes to allow in a single header.
@@ -144,7 +150,10 @@ export interface ZeroOptions<S extends Schema> {
   maxHeaderLength?: number | undefined;
 }
 
-export interface ZeroAdvancedOptions<S extends Schema> extends ZeroOptions<S> {
+export interface ZeroAdvancedOptions<
+  S extends Schema,
+  MD extends CustomMutatorDefs<S> | undefined = undefined,
+> extends ZeroOptions<S, MD> {
   /**
    * UI rendering libraries will often provide a utility for batching multiple
    * state updates into a single render. Some examples are React's

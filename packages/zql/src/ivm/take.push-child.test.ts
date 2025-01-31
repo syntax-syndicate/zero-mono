@@ -1,13 +1,13 @@
 import {expect, test} from 'vitest';
-import type {Input, Storage} from './operator.js';
-import {Take} from './take.js';
+import type {Input, Storage} from './operator.ts';
+import {Take} from './take.ts';
 import {
   runJoinTest,
   type Joins,
   type SourceContents,
   type Sources,
-} from './test/join-push-tests.js';
-import type {Format} from './view.js';
+} from './test/join-push-tests.ts';
+import type {Format} from './view.ts';
 
 const sources: Sources = {
   issue: {
@@ -152,30 +152,30 @@ test('child change, parent is within bound', () => {
     `);
 
   expect(pushes).toMatchInlineSnapshot(`
-        [
-          {
-            "child": {
-              "change": {
-                "node": {
-                  "relationships": {},
-                  "row": {
-                    "id": "c3",
-                    "issueID": "i2",
-                    "text": "i2 c3 text",
-                  },
-                },
-                "type": "add",
+    [
+      {
+        "child": {
+          "change": {
+            "node": {
+              "relationships": {},
+              "row": {
+                "id": "c3",
+                "issueID": "i2",
+                "text": "i2 c3 text",
               },
-              "relationshipName": "comments",
             },
-            "row": {
-              "id": "i2",
-              "text": "second issue",
-            },
-            "type": "child",
+            "type": "add",
           },
-        ]
-    `);
+          "relationshipName": "comments",
+        },
+        "row": {
+          "id": "i2",
+          "text": "second issue",
+        },
+        "type": "child",
+      },
+    ]
+  `);
 
   expect(actualStorage['take']).toMatchInlineSnapshot(`
         {

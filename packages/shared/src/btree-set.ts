@@ -1,4 +1,4 @@
-import {assert} from './asserts.js';
+import {assert} from './asserts.ts';
 
 const MAX_NODE_SIZE = 32;
 
@@ -22,6 +22,14 @@ export class BTreeSet<K> {
   clear() {
     this.#root = emptyLeaf as BNode<K>;
     this.size = 0;
+  }
+
+  clone() {
+    this.#root.isShared = true;
+    const ret = new BTreeSet<K>(this.comparator);
+    ret.#root = this.#root;
+    ret.size = this.size;
+    return ret;
   }
 
   get(key: K): K | undefined {

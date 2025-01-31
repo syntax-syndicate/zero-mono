@@ -1,17 +1,18 @@
 import {expect, suite, test} from 'vitest';
-import {unreachable} from '../../../shared/src/asserts.js';
-import type {JSONValue} from '../../../shared/src/json.js';
-import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.js';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.js';
-import {Catch} from './catch.js';
-import type {Node} from './data.js';
-import {Exists} from './exists.js';
-import {Join} from './join.js';
-import {MemoryStorage} from './memory-storage.js';
-import {Snitch, type SnitchMessage} from './snitch.js';
-import {createSource} from './test/source-factory.js';
+import {unreachable} from '../../../shared/src/asserts.ts';
+import type {JSONValue} from '../../../shared/src/json.ts';
+import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
+import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import {Catch, type CaughtNode} from './catch.ts';
+import {Exists} from './exists.ts';
+import {Join} from './join.ts';
+import {MemoryStorage} from './memory-storage.ts';
+import {Snitch, type SnitchMessage} from './snitch.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
 
 const base = {
   columns: [
@@ -25,6 +26,14 @@ const base = {
     relationshipName: 'comments',
   },
 } as const;
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 const oneParentWithChildTest: FetchTest = {
   ...base,
@@ -105,18 +114,6 @@ suite('EXISTS', () => {
             {
               "constraint": {
                 "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
               },
             },
           ],
@@ -214,19 +211,6 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "1",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c1",
-                  "issueID": "i1",
-                },
-              },
-            },
-          ],
-          [
             "0",
             "fetch",
             {
@@ -292,42 +276,12 @@ suite('EXISTS', () => {
             "fetch",
             {},
           ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
         ],
         "initialFetch": [
           [
             "0",
             "fetch",
             {},
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
           ],
           [
             "1",
@@ -397,7 +351,7 @@ suite('EXISTS', () => {
             "cleanup",
             {
               "constraint": {
-                "issueID": "i1",
+                "issueID": "i2",
               },
             },
           ],
@@ -406,7 +360,7 @@ suite('EXISTS', () => {
             "cleanup",
             {
               "constraint": {
-                "issueID": "i2",
+                "issueID": "i1",
               },
             },
           ],
@@ -440,15 +394,6 @@ suite('EXISTS', () => {
             "fetch",
             {
               "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
                 "issueID": "i3",
               },
             },
@@ -470,48 +415,6 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i2",
-                },
-              },
-            },
-          ],
-          [
             "1",
             "fetch",
             {
@@ -530,14 +433,11 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "0",
+            "1",
             "fetch",
             {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i3",
-                },
+              "constraint": {
+                "issueID": "i1",
               },
             },
           ],
@@ -672,28 +572,6 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "1",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c1",
-                  "issueID": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i1",
-              },
-            },
-          ],
-          [
             "0",
             "fetch",
             {
@@ -703,15 +581,11 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "1",
+            "0",
             "fetch",
             {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c2",
-                  "issueID": "i3",
-                },
+              "constraint": {
+                "id": "i1",
               },
             },
           ],
@@ -817,33 +691,6 @@ suite('EXISTS', () => {
             "fetch",
             {},
           ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i3",
-              },
-            },
-          ],
         ],
         "initialFetch": [
           [
@@ -861,74 +708,11 @@ suite('EXISTS', () => {
             },
           ],
           [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
             "1",
             "fetch",
             {
               "constraint": {
                 "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i2",
-                },
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i3",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i3",
-                },
               },
             },
           ],
@@ -1020,42 +804,12 @@ suite('NOT EXISTS', () => {
             "fetch",
             {},
           ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
         ],
         "initialFetch": [
           [
             "0",
             "fetch",
             {},
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
           ],
           [
             "1",
@@ -1110,43 +864,12 @@ suite('NOT EXISTS', () => {
             "fetch",
             {},
           ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i1",
-              },
-            },
-          ],
         ],
         "initialFetch": [
           [
             "1",
             "fetch",
             {},
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c1",
-                  "issueID": "i1",
-                },
-              },
-            },
           ],
           [
             "0",
@@ -1220,18 +943,6 @@ suite('NOT EXISTS', () => {
             {
               "constraint": {
                 "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
               },
             },
           ],
@@ -1331,7 +1042,7 @@ suite('NOT EXISTS', () => {
             "cleanup",
             {
               "constraint": {
-                "issueID": "i2",
+                "issueID": "i3",
               },
             },
           ],
@@ -1340,7 +1051,7 @@ suite('NOT EXISTS', () => {
             "cleanup",
             {
               "constraint": {
-                "issueID": "i3",
+                "issueID": "i2",
               },
             },
           ],
@@ -1356,25 +1067,7 @@ suite('NOT EXISTS', () => {
             "fetch",
             {
               "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
                 "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i3",
               },
             },
           ],
@@ -1395,48 +1088,6 @@ suite('NOT EXISTS', () => {
             },
           ],
           [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i2",
-                },
-              },
-            },
-          ],
-          [
             "1",
             "fetch",
             {
@@ -1455,23 +1106,11 @@ suite('NOT EXISTS', () => {
             },
           ],
           [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i3",
-                },
-              },
-            },
-          ],
-          [
             "1",
             "fetch",
             {
               "constraint": {
-                "issueID": "i3",
+                "issueID": "i2",
               },
             },
           ],
@@ -1540,24 +1179,6 @@ suite('NOT EXISTS', () => {
             "fetch",
             {},
           ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i3",
-              },
-            },
-          ],
         ],
         "initialFetch": [
           [
@@ -1571,50 +1192,6 @@ suite('NOT EXISTS', () => {
             {
               "constraint": {
                 "id": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c1",
-                  "issueID": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i1",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "constraint": {
-                "id": "i3",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "c2",
-                  "issueID": "i3",
-                },
               },
             },
           ],
@@ -1732,48 +1309,6 @@ suite('NOT EXISTS', () => {
             },
           ],
           [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i1",
-                },
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueID": "i2",
-              },
-            },
-          ],
-          [
-            "0",
-            "fetch",
-            {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i2",
-                },
-              },
-            },
-          ],
-          [
             "1",
             "fetch",
             {
@@ -1792,14 +1327,20 @@ suite('NOT EXISTS', () => {
             },
           ],
           [
-            "0",
+            "1",
             "fetch",
             {
-              "start": {
-                "basis": "at",
-                "row": {
-                  "id": "i3",
-                },
+              "constraint": {
+                "issueID": "i1",
+              },
+            },
+          ],
+          [
+            "1",
+            "fetch",
+            {
+              "constraint": {
+                "issueID": "i2",
               },
             },
           ],
@@ -1898,7 +1439,13 @@ function fetchTest(t: FetchTest, reverse: boolean = false): FetchTestResults {
 
   const sources = t.sources.map((rows, i) => {
     const ordering = t.sorts?.[i] ?? [['id', 'asc']];
-    const source = createSource(`t${i}`, t.columns[i], t.primaryKeys[i]);
+    const source = createSource(
+      lc,
+      logConfig,
+      `t${i}`,
+      t.columns[i],
+      t.primaryKeys[i],
+    );
     for (const row of rows) {
       source.push({type: 'add', row});
     }
@@ -2000,5 +1547,5 @@ type FetchTestResults = {
     cleanup: SnitchMessage[];
   };
   storage: Record<string, JSONValue>;
-  hydrate: Node[];
+  hydrate: CaughtNode[];
 };

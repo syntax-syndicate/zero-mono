@@ -1,11 +1,11 @@
 import {LogContext} from '@rocicorp/logger';
 import UrlPattern from 'url-pattern';
-import {h32} from '../../../../shared/src/hash.js';
-import type {IncomingMessageSubset} from '../../types/http.js';
-import type {Worker} from '../../types/processes.js';
-import {HttpService, type Options} from '../http-service.js';
-import {getConnectParams} from './connect-params.js';
-import {installWebSocketHandoff} from './websocket-handoff.js';
+import {h32} from '../../../../shared/src/hash.ts';
+import type {IncomingMessageSubset} from '../../types/http.ts';
+import type {Worker} from '../../types/processes.ts';
+import {HttpService, type Options} from '../http-service.ts';
+import {getConnectParams} from './connect-params.ts';
+import {installWebSocketHandoff} from './websocket-handoff.ts';
 
 // The server allows the client to use any /:base/ path to facilitate
 // servicing requests on the same domain as the application.
@@ -24,7 +24,6 @@ export class SyncDispatcher extends HttpService {
     opts: Options,
   ) {
     super('dispatcher', lc, opts, fastify => {
-      fastify.get('/', (_req, res) => res.send('OK'));
       installWebSocketHandoff(lc, req => this.#handoff(req), fastify.server);
     });
 

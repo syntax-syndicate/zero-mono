@@ -2,15 +2,24 @@ import {expect, suite, test} from 'vitest';
 import type {
   Condition,
   SimpleOperator,
-} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.js';
-import {Catch, expandNode} from './catch.js';
-import type {Constraint} from './constraint.js';
-import type {Node} from './data.js';
-import type {FetchRequest, Input, Output, Start} from './operator.js';
-import type {SourceChange} from './source.js';
-import {createSource} from './test/source-factory.js';
+} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import {Catch, expandNode, type CaughtNode} from './catch.ts';
+import type {Constraint} from './constraint.ts';
+import type {FetchRequest, Input, Output, Start} from './operator.ts';
+import type {SourceChange} from './source.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 function asNodes(rows: Row[]) {
   return rows.map(row => ({
@@ -31,7 +40,7 @@ function asChanges(sc: SourceChange[]) {
 
 class OverlaySpy implements Output {
   #input: Input;
-  fetches: Node[][] = [];
+  fetches: CaughtNode[][] = [];
 
   onPush = () => {};
 
@@ -51,7 +60,7 @@ class OverlaySpy implements Output {
 
 test('simple-fetch', () => {
   const sort = [['a', 'asc']] as const;
-  const s = createSource('table', {a: {type: 'number'}}, ['a']);
+  const s = createSource(lc, logConfig, 'table', {a: {type: 'number'}}, ['a']);
   const out = new Catch(s.connect(sort));
   expect(out.fetch()).toEqual([]);
 
@@ -73,6 +82,8 @@ test('simple-fetch', () => {
 test('fetch-with-constraint', () => {
   const sort = [['a', 'asc']] as const;
   const s = createSource(
+    lc,
+    logConfig,
     'table',
     {
       a: {type: 'number'},
@@ -129,6 +140,8 @@ test('fetch-with-constraint', () => {
 test('fetch-start', () => {
   const sort = [['a', 'asc']] as const;
   const s = createSource(
+    lc,
+    logConfig,
     'table',
     {
       a: {type: 'number'},
@@ -170,6 +183,8 @@ test('fetch-start', () => {
 test('fetch-start reverse', () => {
   const sort = [['a', 'asc']] as const;
   const s = createSource(
+    lc,
+    logConfig,
     'table',
     {
       a: {type: 'number'},
@@ -220,6 +235,8 @@ suite('fetch-with-constraint-and-start', () => {
   }) {
     const sort = [['a', 'asc']] as const;
     const s = createSource(
+      lc,
+      logConfig,
       'table',
       c.columns ?? {
         a: {type: 'number'},
@@ -481,7 +498,7 @@ suite('fetch-with-constraint-and-start', () => {
 
 test('push', () => {
   const sort = [['a', 'asc']] as const;
-  const s = createSource('table', {a: {type: 'number'}}, ['a']);
+  const s = createSource(lc, logConfig, 'table', {a: {type: 'number'}}, ['a']);
   const out = new Catch(s.connect(sort));
 
   expect(out.pushes).toEqual([]);
@@ -532,7 +549,7 @@ test('overlay-source-isolation', () => {
   // only shows up in the cases it is supposed to.
 
   const sort = [['a', 'asc']] as const;
-  const s = createSource('table', {a: {type: 'number'}}, ['a']);
+  const s = createSource(lc, logConfig, 'table', {a: {type: 'number'}}, ['a']);
   const o1 = new OverlaySpy(s.connect(sort));
   const o2 = new OverlaySpy(s.connect(sort));
   const o3 = new OverlaySpy(s.connect(sort));
@@ -565,7 +582,9 @@ suite('overlay-vs-fetch-start', () => {
     change: SourceChange;
   }) {
     const sort = [['a', 'asc']] as const;
-    const s = createSource('table', {a: {type: 'number'}}, ['a']);
+    const s = createSource(lc, logConfig, 'table', {a: {type: 'number'}}, [
+      'a',
+    ]);
     for (const row of c.startData) {
       s.push({type: 'add', row});
     }
@@ -1336,6 +1355,8 @@ suite('overlay-vs-constraint', () => {
   }) {
     const sort = [['a', 'asc']] as const;
     const s = createSource(
+      lc,
+      logConfig,
       'table',
       {
         a: {type: 'number'},
@@ -1511,6 +1532,8 @@ suite('overlay-vs-filter', () => {
       ['b', 'asc'],
     ] as const;
     const s = createSource(
+      lc,
+      logConfig,
       'table',
       {
         a: {type: 'number'},
@@ -1932,6 +1955,8 @@ suite('overlay-vs-constraint-and-start', () => {
   }) {
     const sort = [['a', 'asc']] as const;
     const s = createSource(
+      lc,
+      logConfig,
       'table',
       c.columns ?? {
         a: {type: 'number'},
@@ -2417,6 +2442,8 @@ test('per-output-sorts', () => {
     ['a', 'asc'],
   ] as const;
   const s = createSource(
+    lc,
+    logConfig,
     'table',
     {
       a: {type: 'number'},
@@ -2452,7 +2479,9 @@ test('streams-are-one-time-only', () => {
   // the server, they are backed by cursors over streaming SQL queries which
   // can't be rewound or branched. This test ensures that streas from all
   // sources behave this way for consistency.
-  const source = createSource('table', {a: {type: 'number'}}, ['a']);
+  const source = createSource(lc, logConfig, 'table', {a: {type: 'number'}}, [
+    'a',
+  ]);
   source.push({type: 'add', row: {a: 1}});
   source.push({type: 'add', row: {a: 2}});
   source.push({type: 'add', row: {a: 3}});
@@ -2482,6 +2511,8 @@ test('streams-are-one-time-only', () => {
 
 test('json is a valid type to read and write to/from a source', () => {
   const source = createSource(
+    lc,
+    logConfig,
     'table',
     {a: {type: 'number'}, j: {type: 'json'}},
     ['a'],
@@ -2526,30 +2557,92 @@ test('json is a valid type to read and write to/from a source', () => {
     row: {a: 4, j: {foo: 'bar'}},
   });
   source.push({type: 'remove', row: {a: 5, j: {baz: 'qux'}}});
-  expect(out.pushes).toEqual([
-    {
-      type: 'edit',
-      oldRow: {a: 4, j: {foo: 'foo'}},
-      row: {a: 4, j: {foo: 'bar'}},
-    },
-    {
-      type: 'remove',
-      node: {relationships: {}, row: {a: 5, j: {baz: 'qux'}}},
-    },
-  ]);
-  expect(out.fetch({})).toEqual(
-    asNodes([
-      {a: 1, j: {foo: 'bar'}},
-      {a: 2, j: {baz: 'qux'}},
-      {a: 3, j: {foo: 'foo'}},
-      {a: 4, j: {foo: 'bar'}},
-      {a: 6, j: {foo: 'bar'}},
-    ]),
-  );
+  expect(out.pushes).toMatchInlineSnapshot(`
+    [
+      {
+        "oldRow": {
+          "a": 4,
+          "j": {
+            "foo": "foo",
+          },
+        },
+        "row": {
+          "a": 4,
+          "j": {
+            "foo": "bar",
+          },
+        },
+        "type": "edit",
+      },
+      {
+        "node": {
+          "relationships": {},
+          "row": {
+            "a": 5,
+            "j": {
+              "baz": "qux",
+            },
+          },
+        },
+        "type": "remove",
+      },
+    ]
+  `);
+  expect(out.fetch({})).toMatchInlineSnapshot(`
+    [
+      {
+        "relationships": {},
+        "row": {
+          "a": 1,
+          "j": {
+            "foo": "bar",
+          },
+        },
+      },
+      {
+        "relationships": {},
+        "row": {
+          "a": 2,
+          "j": {
+            "baz": "qux",
+          },
+        },
+      },
+      {
+        "relationships": {},
+        "row": {
+          "a": 3,
+          "j": {
+            "foo": "foo",
+          },
+        },
+      },
+      {
+        "relationships": {},
+        "row": {
+          "a": 4,
+          "j": {
+            "foo": "bar",
+          },
+        },
+      },
+      {
+        "relationships": {},
+        "row": {
+          "a": 6,
+          "j": {
+            "foo": "bar",
+          },
+        },
+      },
+    ]
+  `);
 });
 
 test('IS and IS NOT comparisons against null', () => {
   const source = createSource(
+    lc,
+    logConfig,
     'table',
     {
       a: {type: 'number'},
@@ -2576,15 +2669,17 @@ test('IS and IS NOT comparisons against null', () => {
       },
     }),
   );
-  expect(out.fetch({})).toEqual([
-    {
-      relationships: {},
-      row: {
-        a: 3,
-        s: null,
+  expect(out.fetch({})).toMatchInlineSnapshot(`
+    [
+      {
+        "relationships": {},
+        "row": {
+          "a": 3,
+          "s": null,
+        },
       },
-    },
-  ]);
+    ]
+  `);
 
   // nothing `=` null
   out = new Catch(
@@ -2635,26 +2730,30 @@ test('IS and IS NOT comparisons against null', () => {
       },
     }),
   );
-  expect(out.fetch({})).toEqual([
-    {
-      relationships: {},
-      row: {
-        a: 1,
-        s: 'foo',
+  expect(out.fetch({})).toMatchInlineSnapshot(`
+    [
+      {
+        "relationships": {},
+        "row": {
+          "a": 1,
+          "s": "foo",
+        },
       },
-    },
-    {
-      relationships: {},
-      row: {
-        a: 2,
-        s: 'bar',
+      {
+        "relationships": {},
+        "row": {
+          "a": 2,
+          "s": "bar",
+        },
       },
-    },
-  ]);
+    ]
+  `);
 });
 
 test('constant/literal expression', () => {
   const source = createSource(
+    lc,
+    logConfig,
     'table',
     {n: {type: 'number'}, b: {type: 'boolean'}, s: {type: 'string'}},
     ['n'],

@@ -99,7 +99,8 @@ Resources:
         # Run up to 12 tasks, capping updates to 2 tasks at a time
         # (Connection counts are currently safe for up to 12 tasks at a time)
         MaximumPercent: 120
-        MinimumHealthyPercent: 50
+        # 1 out of 10 tasks (for Auto Scaling)
+        MinimumHealthyPercent: 10
         DeploymentCircuitBreaker:
           Enable: true
           Rollback: true
@@ -112,6 +113,30 @@ Resources:
       ServiceConnectConfiguration:
         Enabled: true
         Namespace: "zero-cache-sandbox"
+
+  ViewSyncerScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 10
+      MinCapacity: 1
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ServiceNamespace: ecs
+      ScalableDimension: ecs:service:DesiredCount
+      ResourceId: !Sub service/${Cluster}/view-syncer
+
+  ServiceScalingPolicyCPU:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-target-tracking-cpu50
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ViewSyncerScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 50.0
+        ScaleInCooldown: 180
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+
   # First, create the secure parameters
   ViewSyncerSecrets:
     Type: AWS::SecretsManager::Secret

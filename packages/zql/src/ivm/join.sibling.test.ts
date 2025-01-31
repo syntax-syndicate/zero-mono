@@ -1,17 +1,27 @@
 import {expect, suite, test} from 'vitest';
-import {assert} from '../../../shared/src/asserts.js';
-import type {JSONValue} from '../../../shared/src/json.js';
-import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.js';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.js';
-import {Catch, type CaughtChange} from './catch.js';
-import {Join} from './join.js';
-import {MemoryStorage} from './memory-storage.js';
-import type {Input} from './operator.js';
-import {Snitch, type SnitchMessage} from './snitch.js';
-import type {SourceChange} from './source.js';
-import {createSource} from './test/source-factory.js';
+import {assert} from '../../../shared/src/asserts.ts';
+import type {JSONValue} from '../../../shared/src/json.ts';
+import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
+import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import {Catch, type CaughtChange} from './catch.ts';
+import {Join} from './join.ts';
+import {MemoryStorage} from './memory-storage.ts';
+import type {Input} from './operator.ts';
+import {Snitch, type SnitchMessage} from './snitch.ts';
+import type {SourceChange} from './source.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 suite('sibling relationships tests with issues, comments, and owners', () => {
   const base = {
@@ -76,15 +86,6 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
           },
         ],
         [
-          "2",
-          "fetch",
-          {
-            "constraint": {
-              "id": "o2",
-            },
-          },
-        ],
-        [
           "1",
           "fetchCount",
           {
@@ -93,6 +94,15 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
             },
           },
           0,
+        ],
+        [
+          "2",
+          "fetch",
+          {
+            "constraint": {
+              "id": "o2",
+            },
+          },
         ],
         [
           "2",
@@ -182,15 +192,6 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
           {
             "constraint": {
               "ownerId": "o2",
-            },
-          },
-        ],
-        [
-          "1",
-          "fetch",
-          {
-            "constraint": {
-              "issueId": "i2",
             },
           },
         ],
@@ -369,15 +370,6 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
           {
             "constraint": {
               "ownerId": "o2",
-            },
-          },
-        ],
-        [
-          "1",
-          "fetch",
-          {
-            "constraint": {
-              "issueId": "i2",
             },
           },
         ],
@@ -589,42 +581,6 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
               "type": "edit",
             },
           ],
-          [
-            "1",
-            "cleanup",
-            {
-              "constraint": {
-                "issueId": "i1",
-              },
-            },
-          ],
-          [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueId": "i1",
-              },
-            },
-          ],
-          [
-            "2",
-            "cleanup",
-            {
-              "constraint": {
-                "id": "o1",
-              },
-            },
-          ],
-          [
-            "2",
-            "fetch",
-            {
-              "constraint": {
-                "id": "o1",
-              },
-            },
-          ],
         ]
       `);
       expect(storage).toMatchInlineSnapshot(`
@@ -795,15 +751,6 @@ suite('sibling relationships tests with issues, comments, and owners', () => {
             },
           ],
           [
-            "1",
-            "fetch",
-            {
-              "constraint": {
-                "issueId": "i2",
-              },
-            },
-          ],
-          [
             "0",
             "fetchCount",
             {
@@ -865,7 +812,13 @@ function pushSiblingTest(t: PushTestSibling): PushTestSiblingResults {
 
   const sources = t.sources.map((rows, i) => {
     const ordering = t.sorts?.[i] ?? [['id', 'asc']];
-    const source = createSource('test', t.columns[i], t.primaryKeys[i]);
+    const source = createSource(
+      lc,
+      logConfig,
+      'test',
+      t.columns[i],
+      t.primaryKeys[i],
+    );
     for (const row of rows) {
       source.push({type: 'add', row});
     }

@@ -2,40 +2,40 @@ import {PG_OBJECT_IN_USE} from '@drdgvhbh/postgres-error-codes';
 import {LogContext} from '@rocicorp/logger';
 import {DatabaseError} from 'pg-protocol';
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
-import {AbortError} from '../../../../../shared/src/abort-error.js';
-import {TestLogSink} from '../../../../../shared/src/logging-test-utils.js';
-import {Queue} from '../../../../../shared/src/queue.js';
-import {promiseVoid} from '../../../../../shared/src/resolved-promises.js';
-import {sleep} from '../../../../../shared/src/sleep.js';
-import {Default, Index} from '../../../db/postgres-replica-identity-enum.js';
-import {StatementRunner} from '../../../db/statements.js';
+import {AbortError} from '../../../../../shared/src/abort-error.ts';
+import {TestLogSink} from '../../../../../shared/src/logging-test-utils.ts';
+import {Queue} from '../../../../../shared/src/queue.ts';
+import {promiseVoid} from '../../../../../shared/src/resolved-promises.ts';
+import {sleep} from '../../../../../shared/src/sleep.ts';
+import {Default, Index} from '../../../db/postgres-replica-identity-enum.ts';
+import {StatementRunner} from '../../../db/statements.ts';
 import {
   dropReplicationSlots,
   getConnectionURI,
   testDBs,
-} from '../../../test/db.js';
-import {DbFile} from '../../../test/lite.js';
-import {versionFromLexi, versionToLexi} from '../../../types/lexi-version.js';
-import type {PostgresDB} from '../../../types/pg.js';
-import type {Source} from '../../../types/streams.js';
+} from '../../../test/db.ts';
+import {DbFile} from '../../../test/lite.ts';
+import {versionFromLexi, versionToLexi} from '../../../types/lexi-version.ts';
+import type {PostgresDB} from '../../../types/pg.ts';
+import type {Source} from '../../../types/streams.ts';
 import type {
   ChangeSource,
   ChangeStream,
-} from '../../change-streamer/change-streamer-service.js';
-import {getSubscriptionState} from '../../replicator/schema/replication-state.js';
+} from '../../change-streamer/change-streamer-service.ts';
+import {getSubscriptionState} from '../../replicator/schema/replication-state.ts';
 import type {
   Begin,
   ChangeStreamMessage,
   Commit,
-} from '../protocol/current/downstream.js';
-import {initializeChangeSource} from './change-source.js';
-import {replicationSlot} from './initial-sync.js';
-import {fromLexiVersion} from './lsn.js';
-import {dropEventTriggerStatements} from './schema/ddl-test-utils.js';
+} from '../protocol/current/downstream.ts';
+import {initializePostgresChangeSource} from './change-source.ts';
+import {replicationSlot} from './initial-sync.ts';
+import {fromLexiVersion} from './lsn.ts';
+import {dropEventTriggerStatements} from './schema/ddl-test-utils.ts';
 
 const SHARD_ID = 'change_source_test_id';
 
-describe('change-source/pg', {timeout: 10000}, () => {
+describe('change-source/pg', {timeout: 30000}, () => {
   let logSink: TestLogSink;
   let lc: LogContext;
   let upstream: PostgresDB;
@@ -76,7 +76,7 @@ describe('change-source/pg', {timeout: 10000}, () => {
     `);
 
     source = (
-      await initializeChangeSource(
+      await initializePostgresChangeSource(
         lc,
         upstreamURI,
         {id: SHARD_ID, publications: ['zero_foo', 'zero_zero']},
@@ -84,7 +84,7 @@ describe('change-source/pg', {timeout: 10000}, () => {
         {tableCopyWorkers: 5, rowBatchSize: 10000},
       )
     ).changeSource;
-  });
+  }, 30000);
 
   afterEach(async () => {
     streams.forEach(s => s.changes.cancel());
@@ -525,6 +525,7 @@ describe('change-source/pg', {timeout: 10000}, () => {
     ['ALTER TABLE foo RENAME times TO timez', null],
     ['ALTER TABLE foo DROP COLUMN date', null],
     ['ALTER TABLE foo ALTER COLUMN times TYPE TIMESTAMPTZ[]', null],
+    ['ALTER TABLE foo ALTER COLUMN int SET NOT NULL', null],
     [
       // Rename column and rename back
       'ALTER TABLE foo RENAME times TO timez',
@@ -574,7 +575,7 @@ describe('change-source/pg', {timeout: 10000}, () => {
         const downstream = drainToQueue(changes);
 
         // This statement should be successfully converted to Changes.
-        await upstream`INSERT INTO foo(id) VALUES('hello')`;
+        await upstream`INSERT INTO foo(id, int) VALUES('hello', 0)`;
         expect(await downstream.dequeue()).toMatchObject([
           'begin',
           {tag: 'begin'},
@@ -594,8 +595,8 @@ describe('change-source/pg', {timeout: 10000}, () => {
         // effectively freeze replication.
         await upstream.begin(async tx => {
           await tx.unsafe(before);
-          await tx`INSERT INTO foo(id) VALUES('wide')`;
-          await tx`INSERT INTO foo(id) VALUES('world')`;
+          await tx`INSERT INTO foo(id, int) VALUES('wide', 1)`;
+          await tx`INSERT INTO foo(id, int) VALUES('world', 2)`;
           if (after) {
             await tx.unsafe(after);
           }
@@ -690,7 +691,7 @@ describe('change-source/pg', {timeout: 10000}, () => {
   test('error on wrong publications', async () => {
     let err;
     try {
-      await initializeChangeSource(
+      await initializePostgresChangeSource(
         lc,
         upstreamURI,
         {id: SHARD_ID, publications: ['zero_different_publication']},

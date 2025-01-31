@@ -1,27 +1,36 @@
 /* eslint-disable no-console */
 import 'dotenv/config';
+import chalk from 'chalk';
 
-import {getDebugConfig} from '../config/zero-config.js';
-import {getSchema} from '../auth/load-schema.js';
-import {must} from '../../../shared/src/must.js';
-import {Database} from '../../../zqlite/src/db.js';
-import {createSilentLogContext} from '../../../shared/src/logging-test-utils.js';
-import {type QueryDelegate} from '../../../zql/src/query/query-impl.js';
-import {TableSource} from '../../../zqlite/src/table-source.js';
-import {MemoryStorage} from '../../../zql/src/ivm/memory-storage.js';
-import type {AST} from '../../../zero-protocol/src/ast.js';
-import {buildPipeline} from '../../../zql/src/builder/builder.js';
-import {Catch} from '../../../zql/src/ivm/catch.js';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {AST} from '../../../zero-protocol/src/ast.ts';
+import {buildPipeline} from '../../../zql/src/builder/builder.ts';
+import {Catch} from '../../../zql/src/ivm/catch.ts';
+import {MemoryStorage} from '../../../zql/src/ivm/memory-storage.ts';
+import {
+  newQuery,
+  type QueryDelegate,
+} from '../../../zql/src/query/query-impl.ts';
+import {Database} from '../../../zqlite/src/db.ts';
 import {
   runtimeDebugFlags,
   runtimeDebugStats,
-} from '../../../zqlite/src/runtime-debug.js';
+} from '../../../zqlite/src/runtime-debug.ts';
+import {TableSource} from '../../../zqlite/src/table-source.ts';
+import {getSchema} from '../auth/load-schema.ts';
+import {getDebugConfig, type LogConfig} from '../config/zero-config.ts';
 
 const config = getDebugConfig();
 const schemaAndPermissions = await getSchema(config);
 runtimeDebugFlags.trackRowsVended = true;
 
-const ast = JSON.parse(must(config.debug.ast)) as AST;
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 const db = new Database(createSilentLogContext(), config.replicaFile);
 const sources = new Map<string, TableSource>();
@@ -32,6 +41,8 @@ const host: QueryDelegate = {
       return source;
     }
     source = new TableSource(
+      lc,
+      logConfig,
       '',
       db,
       name,
@@ -58,23 +69,116 @@ const host: QueryDelegate = {
   },
 };
 
-const pipeline = buildPipeline(ast, host);
-const output = new Catch(pipeline);
-
-const start = performance.now();
-output.fetch();
-const end = performance.now();
-
-let totalRowsConsidered = 0;
-for (const source of sources.values()) {
-  const entires = [
-    ...(runtimeDebugStats.getRowsVended('')?.get(source.table)?.entries() ??
-      []),
-  ];
-  totalRowsConsidered += entires.reduce((acc, entry) => acc + entry[1], 0);
-  console.log(source.table + ' VENDED: ', entires);
+let start: number;
+let end: number;
+const suppressError: Record<string, unknown> = {};
+if (config.debug.ast) {
+  [start, end] = runAst(JSON.parse(config.debug.ast) as AST);
+} else if (config.debug.query) {
+  [start, end] = runQuery(config.debug.query);
+} else {
+  throw new Error('No query or AST provided');
 }
 
-// console.log(JSON.stringify(view, null, 2));
-console.log('ROWS CONSIDERED:', totalRowsConsidered);
-console.log('TIME:', (end - start).toFixed(2), 'ms');
+function runAst(ast: AST): [number, number] {
+  const pipeline = buildPipeline(ast, host);
+  const output = new Catch(pipeline);
+
+  const start = performance.now();
+  output.fetch();
+  const end = performance.now();
+  return [start, end];
+}
+
+function runQuery(queryString: string): [number, number] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any;
+  const z = {
+    query: Object.fromEntries(
+      Object.entries(schemaAndPermissions.schema.tables).map(([name]) => [
+        name,
+        newQuery(host, schemaAndPermissions.schema, name),
+      ]),
+    ),
+  };
+  suppressError.q = q;
+  suppressError.z = z;
+
+  eval(`q = ${queryString};`);
+  const start = performance.now();
+  q.run();
+  const end = performance.now();
+  return [start, end];
+}
+
+console.log(chalk.blue.bold('=== Query Stats: ===\n'));
+showStats();
+console.log(chalk.blue.bold('\n\n=== Query Plans: ===\n'));
+explainQueries();
+
+function showStats() {
+  let totalRowsConsidered = 0;
+  for (const source of sources.values()) {
+    const entires = [
+      ...(runtimeDebugStats.getRowsVended('')?.get(source.table)?.entries() ??
+        []),
+    ];
+    totalRowsConsidered += entires.reduce((acc, entry) => acc + entry[1], 0);
+    console.log(chalk.bold(source.table + ' vended:'), entires);
+  }
+
+  console.log(
+    chalk.bold('total rows considered:'),
+    colorRowsConsidered(totalRowsConsidered),
+  );
+  console.log(chalk.bold('time:'), colorTime(end - start), 'ms');
+}
+
+function explainQueries() {
+  for (const source of sources.values()) {
+    const queries =
+      runtimeDebugStats.getRowsVended('')?.get(source.table)?.keys() ?? [];
+    for (const query of queries) {
+      console.log(chalk.bold('query'), query);
+      console.log(
+        db
+          // we should be more intelligent about value replacement.
+          // Different values result in different plans. E.g., picking a value at the start
+          // of an index will result in `scan` vs `search`. The scan is fine in that case.
+          .prepare(`EXPLAIN QUERY PLAN ${query.replaceAll('?', "'sdfse'")}`)
+          .all<{detail: string}>()
+          .map((row, i) => colorPlanRow(row.detail, i))
+          .join('\n'),
+      );
+      console.log('\n');
+    }
+  }
+}
+
+function colorTime(duration: number) {
+  if (duration < 100) {
+    return chalk.green(duration.toFixed(2) + 'ms');
+  } else if (duration < 1000) {
+    return chalk.yellow(duration.toFixed(2) + 'ms');
+  }
+  return chalk.red(duration.toFixed(2) + 'ms');
+}
+
+function colorRowsConsidered(n: number) {
+  if (n < 1000) {
+    return chalk.green(n.toString());
+  } else if (n < 10000) {
+    return chalk.yellow(n.toString());
+  }
+  return chalk.red(n.toString());
+}
+
+function colorPlanRow(row: string, i: number) {
+  if (row.includes('SCAN')) {
+    if (i === 0) {
+      return chalk.yellow(row);
+    }
+    return chalk.red(row);
+  }
+  return chalk.green(row);
+}

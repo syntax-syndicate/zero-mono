@@ -1,18 +1,18 @@
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
-import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.js';
-import {Queue} from '../../../../shared/src/queue.js';
-import {sleep} from '../../../../shared/src/sleep.js';
-import {testDBs} from '../../test/db.js';
-import type {PostgresDB} from '../../types/pg.js';
-import {Subscription} from '../../types/subscription.js';
-import {type Commit} from '../change-source/protocol/current/downstream.js';
-import type {StatusMessage} from '../change-source/protocol/current/status.js';
-import {ReplicationMessages} from '../replicator/test-utils.js';
-import {type Downstream} from './change-streamer.js';
-import * as ErrorType from './error-type-enum.js';
-import {setupCDCTables} from './schema/tables.js';
-import {Storer} from './storer.js';
-import {createSubscriber} from './test-utils.js';
+import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.ts';
+import {Queue} from '../../../../shared/src/queue.ts';
+import {sleep} from '../../../../shared/src/sleep.ts';
+import {testDBs} from '../../test/db.ts';
+import type {PostgresDB} from '../../types/pg.ts';
+import {Subscription} from '../../types/subscription.ts';
+import {type Commit} from '../change-source/protocol/current/downstream.ts';
+import type {StatusMessage} from '../change-source/protocol/current/status.ts';
+import {ReplicationMessages} from '../replicator/test-utils.ts';
+import {type Downstream} from './change-streamer.ts';
+import * as ErrorType from './error-type-enum.ts';
+import {ensureReplicationConfig, setupCDCTables} from './schema/tables.ts';
+import {Storer} from './storer.ts';
+import {createSubscriber} from './test-utils.ts';
 
 describe('change-streamer/storer', () => {
   const lc = createSilentLogContext();
@@ -25,8 +25,14 @@ describe('change-streamer/storer', () => {
 
   beforeEach(async () => {
     db = await testDBs.create('change_streamer_storer');
+    await db.begin(tx => setupCDCTables(lc, tx));
+    await ensureReplicationConfig(
+      lc,
+      db,
+      {replicaVersion: REPLICA_VERSION, publications: []},
+      true,
+    );
     await db.begin(async tx => {
-      await setupCDCTables(lc, tx);
       await Promise.all(
         [
           {watermark: '03', pos: 0, change: {tag: 'begin', foo: 'bar'}},
@@ -37,9 +43,13 @@ describe('change-streamer/storer', () => {
           {watermark: '06', pos: 2, change: {tag: 'commit', boo: 'far'}},
         ].map(row => tx`INSERT INTO cdc."changeLog" ${tx(row)}`),
       );
+      await tx`UPDATE cdc."replicationState" SET "lastWatermark" = '06'`;
     });
     consumed = new Queue();
-    storer = new Storer(lc, db, REPLICA_VERSION, msg => consumed.enqueue(msg));
+    storer = new Storer(lc, 'task-id', db, REPLICA_VERSION, msg =>
+      consumed.enqueue(msg),
+    );
+    await storer.assumeOwnership();
     done = storer.run();
   });
 
@@ -103,14 +113,6 @@ describe('change-streamer/storer', () => {
       {watermark: '06', pos: 1n},
       {watermark: '06', pos: 2n},
     ]);
-  });
-
-  test('stored watermarks', async () => {
-    expect(await storer.getLastStoredWatermark()).toBe('06');
-
-    await db`TRUNCATE TABLE cdc."changeLog"`;
-
-    expect(await storer.getLastStoredWatermark()).toBe(null);
   });
 
   test('no queueing if not in transaction', async () => {
@@ -210,22 +212,6 @@ describe('change-streamer/storer', () => {
         {
           type: ErrorType.WatermarkTooOld,
           message: 'earliest supported watermark is 03 (requested 01)',
-        },
-      ],
-    ]);
-  });
-
-  test('watermark not found', async () => {
-    // '123' is some watermark from the future.
-    const [sub, _, stream] = createSubscriber('123');
-    storer.catchup(sub);
-
-    expect(await drain(stream)).toEqual([
-      [
-        'error',
-        {
-          type: ErrorType.WatermarkNotFound,
-          message: 'cannot catch up from requested watermark 123',
         },
       ],
     ]);

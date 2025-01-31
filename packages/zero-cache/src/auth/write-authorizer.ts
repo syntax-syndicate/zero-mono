@@ -4,47 +4,47 @@ import type {JWTPayload} from 'jose';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pid} from 'node:process';
-import {assert} from '../../../shared/src/asserts.js';
-import type {JSONValue} from '../../../shared/src/json.js';
-import {randInt} from '../../../shared/src/rand.js';
-import * as v from '../../../shared/src/valita.js';
-import type {Condition} from '../../../zero-protocol/src/ast.js';
+import {assert} from '../../../shared/src/asserts.ts';
+import type {JSONValue} from '../../../shared/src/json.ts';
+import {randInt} from '../../../shared/src/rand.ts';
+import * as v from '../../../shared/src/valita.ts';
+import type {Condition} from '../../../zero-protocol/src/ast.ts';
+import {
+  primaryKeyValueSchema,
+  type PrimaryKeyValue,
+} from '../../../zero-protocol/src/primary-key.ts';
 import type {
   CRUDOp,
   DeleteOp,
   InsertOp,
   UpdateOp,
   UpsertOp,
-} from '../../../zero-protocol/src/mod.js';
-import {
-  primaryKeyValueSchema,
-  type PrimaryKeyValue,
-} from '../../../zero-protocol/src/primary-key.js';
-import type {Schema} from '../../../zero-schema/src/builder/schema-builder.js';
+} from '../../../zero-protocol/src/push.ts';
+import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {
   PermissionsConfig,
   Policy,
-} from '../../../zero-schema/src/compiled-permissions.js';
-import type {BuilderDelegate} from '../../../zql/src/builder/builder.js';
+} from '../../../zero-schema/src/compiled-permissions.ts';
+import type {BuilderDelegate} from '../../../zql/src/builder/builder.ts';
 import {
   bindStaticParameters,
   buildPipeline,
-} from '../../../zql/src/builder/builder.js';
-import {AuthQuery, authQuery} from '../../../zql/src/query/auth-query.js';
-import {dnf} from '../../../zql/src/query/dnf.js';
-import type {Query} from '../../../zql/src/query/query.js';
-import {Database} from '../../../zqlite/src/db.js';
-import {compile, sql} from '../../../zqlite/src/internal/sql.js';
+} from '../../../zql/src/builder/builder.ts';
+import {AuthQuery, authQuery} from '../../../zql/src/query/auth-query.ts';
+import {dnf} from '../../../zql/src/query/dnf.ts';
+import type {Query} from '../../../zql/src/query/query.ts';
+import {Database} from '../../../zqlite/src/db.ts';
+import {compile, sql} from '../../../zqlite/src/internal/sql.ts';
 import {
   fromSQLiteTypes,
   TableSource,
-} from '../../../zqlite/src/table-source.js';
-import type {ZeroConfig} from '../config/zero-config.js';
-import {computeZqlSpecs} from '../db/lite-tables.js';
-import type {LiteAndZqlSpec} from '../db/specs.js';
-import {StatementRunner} from '../db/statements.js';
-import {DatabaseStorage} from '../services/view-syncer/database-storage.js';
-import {mapLiteDataTypeToZqlSchemaValue} from '../types/lite.js';
+} from '../../../zqlite/src/table-source.ts';
+import type {LogConfig, ZeroConfig} from '../config/zero-config.ts';
+import {computeZqlSpecs} from '../db/lite-tables.ts';
+import type {LiteAndZqlSpec} from '../db/specs.ts';
+import {StatementRunner} from '../db/statements.ts';
+import {DatabaseStorage} from '../services/view-syncer/database-storage.ts';
+import {mapLiteDataTypeToZqlSchemaValue} from '../types/lite.ts';
 
 type Phase = 'preMutation' | 'postMutation';
 
@@ -70,10 +70,11 @@ export class WriteAuthorizerImpl implements WriteAuthorizer {
   readonly #statementRunner: StatementRunner;
   readonly #lc: LogContext;
   readonly #clientGroupID: string;
+  readonly #logConfig: LogConfig;
 
   constructor(
     lc: LogContext,
-    config: Pick<ZeroConfig, 'storageDBTmpDir'>,
+    config: ZeroConfig,
     schema: Schema,
     permissions: PermissionsConfig | undefined,
     replica: Database,
@@ -81,6 +82,7 @@ export class WriteAuthorizerImpl implements WriteAuthorizer {
   ) {
     this.#clientGroupID = cgID;
     this.#lc = lc.withContext('class', 'WriteAuthorizerImpl');
+    this.#logConfig = config.log;
     this.#schema = schema;
     this.#permissionsConfig = permissions ?? {};
     this.#replica = replica;
@@ -228,6 +230,8 @@ export class WriteAuthorizerImpl implements WriteAuthorizer {
     const {columns, primaryKey} = tableSpec.tableSpec;
     assert(primaryKey.length);
     source = new TableSource(
+      this.#lc,
+      this.#logConfig,
       this.#clientGroupID,
       this.#replica,
       tableName,

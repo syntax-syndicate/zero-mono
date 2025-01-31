@@ -1,5 +1,5 @@
 import {resolver, type Resolver} from '@rocicorp/resolver';
-import type {Sink, Source} from './streams.js';
+import type {Sink, Source} from './streams.ts';
 
 /**
  * A Subscription abstracts a continuous, logically infinite stream of messages intended
@@ -274,7 +274,7 @@ export class Subscription<T, M = T> implements Source<T>, Sink<M> {
   }
 }
 
-type Options<M> = {
+export type Options<M> = {
   /**
    * Coalesces messages waiting to be consumed. This is useful for "watermark" type
    * subscriptions in which the consumer is only interested in the cumulative state

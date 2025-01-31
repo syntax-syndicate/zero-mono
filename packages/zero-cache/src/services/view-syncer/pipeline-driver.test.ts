@@ -1,20 +1,28 @@
 import {LogContext} from '@rocicorp/logger';
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
-import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.js';
-import type {AST} from '../../../../zero-protocol/src/ast.js';
-import type {Database as DB} from '../../../../zqlite/src/db.js';
-import {Database} from '../../../../zqlite/src/db.js';
-import {DbFile} from '../../test/lite.js';
-import {initChangeLog} from '../replicator/schema/change-log.js';
-import {initReplicationState} from '../replicator/schema/replication-state.js';
+import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.ts';
+import type {AST} from '../../../../zero-protocol/src/ast.ts';
+import type {Database as DB} from '../../../../zqlite/src/db.ts';
+import {Database} from '../../../../zqlite/src/db.ts';
+import {DbFile} from '../../test/lite.ts';
+import {initChangeLog} from '../replicator/schema/change-log.ts';
+import {initReplicationState} from '../replicator/schema/replication-state.ts';
 import {
   fakeReplicator,
   ReplicationMessages,
   type FakeReplicator,
-} from '../replicator/test-utils.js';
-import {CREATE_STORAGE_TABLE, DatabaseStorage} from './database-storage.js';
-import {PipelineDriver} from './pipeline-driver.js';
-import {ResetPipelinesSignal, Snapshotter} from './snapshotter.js';
+} from '../replicator/test-utils.ts';
+import {CREATE_STORAGE_TABLE, DatabaseStorage} from './database-storage.ts';
+import {PipelineDriver} from './pipeline-driver.ts';
+import {ResetPipelinesSignal, Snapshotter} from './snapshotter.ts';
+import type {LogConfig} from '../../config/zero-config.ts';
+
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 describe('view-syncer/pipeline-driver', () => {
   let dbFile: DbFile;
@@ -33,6 +41,7 @@ describe('view-syncer/pipeline-driver', () => {
 
     pipelines = new PipelineDriver(
       lc,
+      logConfig,
       new Snapshotter(lc, dbFile.path),
       new DatabaseStorage(storage).createClientGroupStorage('foo-client-group'),
       'pipeline-driver.test.ts',

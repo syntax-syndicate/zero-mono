@@ -1,9 +1,9 @@
 import {LogContext} from '@rocicorp/logger';
-import {assert} from '../../../../shared/src/asserts.js';
-import {Database} from '../../../../zqlite/src/db.js';
-import type {ColumnSpec, IndexSpec, TableSpec} from '../../db/specs.js';
-import {StatementRunner} from '../../db/statements.js';
-import type {RowKey, RowValue} from '../../types/row-key.js';
+import {assert} from '../../../../shared/src/asserts.ts';
+import {Database} from '../../../../zqlite/src/db.ts';
+import type {ColumnSpec, IndexSpec, TableSpec} from '../../db/specs.ts';
+import {StatementRunner} from '../../db/statements.ts';
+import type {RowKey, RowValue} from '../../types/row-key.ts';
 import type {
   ColumnAdd,
   ColumnDrop,
@@ -22,15 +22,15 @@ import type {
   TableCreate,
   TableDrop,
   TableRename,
-} from '../change-source/protocol/current/data.js';
-import {MessageProcessor} from './incremental-sync.js';
+} from '../change-source/protocol/current/data.ts';
+import {ChangeProcessor} from './change-processor.ts';
 
 export interface FakeReplicator {
   processTransaction(finalWatermark: string, ...msgs: DataChange[]): void;
 }
 
 export function fakeReplicator(lc: LogContext, db: Database): FakeReplicator {
-  const messageProcessor = createMessageProcessor(db);
+  const messageProcessor = createChangeProcessor(db);
   return {
     processTransaction: (watermark, ...msgs) => {
       messageProcessor.processMessage(lc, [
@@ -50,13 +50,13 @@ export function fakeReplicator(lc: LogContext, db: Database): FakeReplicator {
   };
 }
 
-export function createMessageProcessor(
+export function createChangeProcessor(
   db: Database,
   failures: (lc: LogContext, err: unknown) => void = (_, err) => {
     throw err;
   },
-): MessageProcessor {
-  return new MessageProcessor(new StatementRunner(db), 'IMMEDIATE', failures);
+): ChangeProcessor {
+  return new ChangeProcessor(new StatementRunner(db), 'IMMEDIATE', failures);
 }
 
 export class ReplicationMessages<

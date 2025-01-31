@@ -1,18 +1,28 @@
 import {expect, suite, test} from 'vitest';
-import {assert} from '../../../shared/src/asserts.js';
-import type {JSONValue} from '../../../shared/src/json.js';
-import type {Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row, Value} from '../../../zero-protocol/src/data.js';
-import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.js';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.js';
-import {Catch} from './catch.js';
-import type {Node} from './data.js';
-import {MemoryStorage} from './memory-storage.js';
-import {Snitch, type SnitchMessage} from './snitch.js';
-import {Take, type PartitionKey} from './take.js';
-import {createSource} from './test/source-factory.js';
-import type {FetchRequest} from './operator.js';
-import type {Stream} from './stream.js';
+import {assert} from '../../../shared/src/asserts.ts';
+import type {JSONValue} from '../../../shared/src/json.ts';
+import type {Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row, Value} from '../../../zero-protocol/src/data.ts';
+import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
+import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import {Catch, type CaughtNode} from './catch.ts';
+import type {Node} from './data.ts';
+import {MemoryStorage} from './memory-storage.ts';
+import type {FetchRequest} from './operator.ts';
+import {Snitch, type SnitchMessage} from './snitch.ts';
+import type {Stream} from './stream.ts';
+import {Take, type PartitionKey} from './take.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 suite('take with no partition', () => {
   const base = {
@@ -427,7 +437,7 @@ test('exception during hydrate', () => {
   const columns = {id: {type: 'string'}, created: {type: 'number'}} as const;
   const primaryKey = ['id'] as const;
   const log: SnitchMessage[] = [];
-  const source = createSource('table', columns, primaryKey);
+  const source = createSource(lc, logConfig, 'table', columns, primaryKey);
   const snitch = new ThrowingSnitch(
     source.connect([['id', 'asc']]),
     'takeSnitch',
@@ -444,7 +454,7 @@ test('early return during hydrate', () => {
   const columns = {id: {type: 'string'}, created: {type: 'number'}} as const;
   const primaryKey = ['id'] as const;
   const log: SnitchMessage[] = [];
-  const source = createSource('table', columns, primaryKey);
+  const source = createSource(lc, logConfig, 'table', columns, primaryKey);
   const sourceRows = [
     {id: 'i1', created: 100},
     {id: 'i2', created: 200},
@@ -1755,7 +1765,7 @@ suite('take with partition', () => {
 
 function takeTest(t: TakeTest): TakeTestResults {
   const log: SnitchMessage[] = [];
-  const source = createSource('table', t.columns, t.primaryKey);
+  const source = createSource(lc, logConfig, 'table', t.columns, t.primaryKey);
   for (const row of t.sourceRows) {
     source.push({type: 'add', row});
   }
@@ -1874,11 +1884,11 @@ type PartitionTestResults = {
     cleanup: SnitchMessage[];
   };
   storage: Record<string, JSONValue>;
-  hydrate: Node[];
+  hydrate: CaughtNode[];
 };
 
 type CleanupOnlyPartitionTestResults = {
   messages: SnitchMessage[];
   storage: Record<string, JSONValue>;
-  nodes: Node[];
+  nodes: CaughtNode[];
 };

@@ -1,19 +1,23 @@
+import {PG_SERIALIZATION_FAILURE} from '@drdgvhbh/postgres-error-codes';
 import {LogContext} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
-import {assert} from '../../../../shared/src/asserts.js';
-import {Queue} from '../../../../shared/src/queue.js';
-import {promiseVoid} from '../../../../shared/src/resolved-promises.js';
-import * as Mode from '../../db/mode-enum.js';
-import {TransactionPool} from '../../db/transaction-pool.js';
-import type {JSONValue} from '../../types/bigint-json.js';
-import type {PostgresDB} from '../../types/pg.js';
-import {type Commit} from '../change-source/protocol/current/downstream.js';
-import type {StatusMessage} from '../change-source/protocol/current/status.js';
-import type {Service} from '../service.js';
-import type {WatermarkedChange} from './change-streamer-service.js';
-import {type ChangeEntry} from './change-streamer.js';
-import * as ErrorType from './error-type-enum.js';
-import {Subscriber} from './subscriber.js';
+import postgres from 'postgres';
+import {AbortError} from '../../../../shared/src/abort-error.ts';
+import {assert} from '../../../../shared/src/asserts.ts';
+import {Queue} from '../../../../shared/src/queue.ts';
+import {promiseVoid} from '../../../../shared/src/resolved-promises.ts';
+import * as Mode from '../../db/mode-enum.ts';
+import {TransactionPool} from '../../db/transaction-pool.ts';
+import type {JSONValue} from '../../types/bigint-json.ts';
+import type {PostgresDB} from '../../types/pg.ts';
+import {type Commit} from '../change-source/protocol/current/downstream.ts';
+import type {StatusMessage} from '../change-source/protocol/current/status.ts';
+import type {Service} from '../service.ts';
+import type {WatermarkedChange} from './change-streamer-service.ts';
+import {type ChangeEntry} from './change-streamer.ts';
+import * as ErrorType from './error-type-enum.ts';
+import type {ReplicationState} from './schema/tables.ts';
+import {Subscriber} from './subscriber.ts';
 
 type QueueEntry =
   | ['change', WatermarkedChange]
@@ -24,6 +28,7 @@ type PendingTransaction = {
   pool: TransactionPool;
   preCommitWatermark: string;
   pos: number;
+  startingReplicationState: Promise<ReplicationState>;
 };
 
 /**
@@ -59,6 +64,7 @@ type PendingTransaction = {
 export class Storer implements Service {
   readonly id = 'storer';
   readonly #lc: LogContext;
+  readonly #taskID: string;
   readonly #db: PostgresDB;
   readonly #replicaVersion: string;
   readonly #onConsumed: (c: Commit | StatusMessage) => void;
@@ -67,21 +73,28 @@ export class Storer implements Service {
 
   constructor(
     lc: LogContext,
+    taskID: string,
     db: PostgresDB,
     replicaVersion: string,
     onConsumed: (c: Commit | StatusMessage) => void,
   ) {
     this.#lc = lc;
+    this.#taskID = taskID;
     this.#db = db;
     this.#replicaVersion = replicaVersion;
     this.#onConsumed = onConsumed;
   }
 
-  async getLastStoredWatermark(): Promise<string | null> {
-    const result = await this.#db<
-      {max: string | null}[]
-    >`SELECT MAX(watermark) as max FROM cdc."changeLog"`;
-    return result[0].max;
+  async assumeOwnership() {
+    const db = this.#db;
+    const owner = this.#taskID;
+    await db`UPDATE cdc."replicationState" SET ${db({owner})}`;
+  }
+
+  async getLastWatermark(): Promise<string> {
+    const [{lastWatermark}] = await this.#db<{lastWatermark: string}[]>`
+      SELECT "lastWatermark" FROM cdc."replicationState"`;
+    return lastWatermark;
   }
 
   async purgeRecordsBefore(watermark: string): Promise<number> {
@@ -133,6 +146,7 @@ export class Storer implements Service {
       const [tag, change] = downstream;
       if (tag === 'begin') {
         assert(!tx, 'received BEGIN in the middle of a transaction');
+        const {promise, resolve, reject} = resolver<ReplicationState>();
         tx = {
           pool: new TransactionPool(
             this.#lc.withContext('watermark', watermark),
@@ -140,8 +154,18 @@ export class Storer implements Service {
           ),
           preCommitWatermark: watermark,
           pos: 0,
+          startingReplicationState: promise,
         };
         tx.pool.run(this.#db);
+        // Pipeline a read of the current ReplicationState,
+        // which will be checked before committing.
+        tx.pool.process(tx => {
+          tx<ReplicationState[]>`SELECT * FROM cdc."replicationState"`.then(
+            ([result]) => resolve(result),
+            reject,
+          );
+          return [];
+        });
       } else {
         assert(tx, `received ${tag} outside of transaction`);
         tx.pos++;
@@ -157,8 +181,34 @@ export class Storer implements Service {
       tx.pool.process(tx => [tx`INSERT INTO cdc."changeLog" ${tx(entry)}`]);
 
       if (tag === 'commit') {
-        tx.pool.setDone();
-        await tx.pool.done();
+        const {owner} = await tx.startingReplicationState;
+        if (owner !== this.#taskID) {
+          // Ownership change reflected in the replicationState read in 'begin'.
+          tx.pool.fail(
+            new AbortError(`changeLog ownership has been assumed by ${owner}`),
+          );
+        } else {
+          // Update the replication state.
+          const lastWatermark = watermark;
+          tx.pool.process(tx => [
+            tx`UPDATE cdc."replicationState" SET ${tx({lastWatermark})}`,
+          ]);
+          tx.pool.setDone();
+        }
+
+        try {
+          await tx.pool.done();
+        } catch (e) {
+          if (
+            e instanceof postgres.PostgresError &&
+            e.code === PG_SERIALIZATION_FAILURE
+          ) {
+            // Ownership change happened after the replicationState was read in 'begin'.
+            throw new AbortError(`changeLog ownership has changed`, {cause: e});
+          }
+          throw e;
+        }
+
         tx = null;
 
         // ACK the LSN to the upstream Postgres.
@@ -228,7 +278,7 @@ export class Storer implements Service {
               count++;
             } else {
               this.#lc.warn?.(
-                `rejecting subscriber at watermark ${sub.watermark}`,
+                `rejecting subscriber at watermark ${sub.watermark} (earliest watermark: ${entry.watermark})`,
               );
               sub.close(
                 ErrorType.WatermarkTooOld,
@@ -239,22 +289,21 @@ export class Storer implements Service {
           }
         }
         if (watermarkFound) {
-          // Flushes the backlog of messages buffered during catchup and
-          // allows the subscription to forward subsequent messages immediately.
-          sub.setCaughtUp();
-
           this.#lc.info?.(
             `caught up ${sub.id} with ${count} changes (${
               Date.now() - start
             } ms)`,
           );
         } else {
-          this.#lc.warn?.(`rejecting subscriber at watermark ${sub.watermark}`);
-          sub.close(
-            ErrorType.WatermarkNotFound,
-            `cannot catch up from requested watermark ${sub.watermark}`,
+          const [{lastWatermark}] = await this.#db<{lastWatermark: string}[]>`
+            SELECT "lastWatermark" FROM cdc."replicationState"`;
+          this.#lc.warn?.(
+            `subscriber at watermark ${sub.watermark} is ahead of latest watermark: ${lastWatermark}`,
           );
         }
+        // Flushes the backlog of messages buffered during catchup and
+        // allows the subscription to forward subsequent messages immediately.
+        sub.setCaughtUp();
       });
     } catch (err) {
       sub.fail(err);

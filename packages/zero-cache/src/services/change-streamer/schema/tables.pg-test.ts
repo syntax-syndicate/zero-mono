@@ -1,15 +1,15 @@
 import {afterEach, beforeEach, describe, expect, test} from 'vitest';
-import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.js';
-import {Database} from '../../../../../zqlite/src/db.js';
-import {expectTables, testDBs} from '../../../test/db.js';
-import type {PostgresDB} from '../../../types/pg.js';
-import {initReplicationState} from '../../replicator/schema/replication-state.js';
+import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.ts';
+import {Database} from '../../../../../zqlite/src/db.ts';
+import {expectTables, testDBs} from '../../../test/db.ts';
+import type {PostgresDB} from '../../../types/pg.ts';
+import {initReplicationState} from '../../replicator/schema/replication-state.ts';
 import {
   AutoResetSignal,
   ensureReplicationConfig,
   markResetRequired,
   setupCDCTables,
-} from './tables.js';
+} from './tables.ts';
 
 describe('change-streamer/schema/tables', () => {
   const lc = createSilentLogContext();
@@ -47,13 +47,22 @@ describe('change-streamer/schema/tables', () => {
           lock: 1,
         },
       ],
+      ['cdc.replicationState']: [
+        {
+          lastWatermark: '183',
+          owner: null,
+          lock: 1,
+        },
+      ],
       ['cdc.changeLog']: [],
     });
 
     await db`
     INSERT INTO cdc."changeLog" (watermark, pos, change)
         values ('184', 1, JSONB('{"foo":"bar"}'));
-    `;
+    UPDATE cdc."replicationState" 
+        SET "lastWatermark" = '184', owner = 'my-task';
+    `.simple();
 
     // Should be a no-op.
     await ensureReplicationConfig(
@@ -75,6 +84,13 @@ describe('change-streamer/schema/tables', () => {
           lock: 1,
         },
       ],
+      ['cdc.replicationState']: [
+        {
+          lastWatermark: '184',
+          owner: 'my-task',
+          lock: 1,
+        },
+      ],
       ['cdc.changeLog']: [
         {
           watermark: '184',
@@ -92,6 +108,13 @@ describe('change-streamer/schema/tables', () => {
           replicaVersion: '183',
           publications: ['zero_data', 'zero_metadata'],
           resetRequired: true,
+          lock: 1,
+        },
+      ],
+      ['cdc.replicationState']: [
+        {
+          lastWatermark: '184',
+          owner: 'my-task',
           lock: 1,
         },
       ],
@@ -138,6 +161,13 @@ describe('change-streamer/schema/tables', () => {
           replicaVersion: '1g8',
           publications: ['zero_data', 'zero_metadata'],
           resetRequired: null,
+          lock: 1,
+        },
+      ],
+      ['cdc.replicationState']: [
+        {
+          lastWatermark: '1g8',
+          owner: null,
           lock: 1,
         },
       ],

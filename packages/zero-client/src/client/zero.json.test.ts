@@ -1,6 +1,11 @@
 import {expect, test} from 'vitest';
-import {zeroForTest} from './test-utils.js';
-import {createSchema, json, string, table} from '../mod.js';
+import {createSchema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import {
+  json,
+  string,
+  table,
+} from '../../../zero-schema/src/builder/table-builder.ts';
+import {zeroForTest} from './test-utils.ts';
 
 test('we can create rows with json columns and query those rows', async () => {
   const z = zeroForTest({

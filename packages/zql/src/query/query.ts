@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type {Expand, ExpandRecursive} from '../../../shared/src/expand.ts';
+import type {Schema as ZeroSchema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import type {
   LastInTuple,
+  SchemaValueToTSType,
   TableSchema,
-} from '../../../zero-schema/src/table-schema.js';
-import type {SchemaValueToTSType} from '../../../zero-schema/src/table-schema.js';
-import type {ExpressionFactory, ParameterReference} from './expression.js';
-import type {TypedView} from './typed-view.js';
-import type {Expand, ExpandRecursive} from '../../../shared/src/expand.js';
-import type {Schema as ZeroSchema} from '../../../zero-schema/src/builder/schema-builder.js';
+} from '../../../zero-schema/src/table-schema.ts';
+import type {ExpressionFactory, ParameterReference} from './expression.ts';
+import type {TypedView} from './typed-view.ts';
 
 type Selector<E extends TableSchema> = keyof E['columns'];
 export type NoJsonSelector<T extends TableSchema> = Exclude<
@@ -32,18 +32,21 @@ export type Operator =
   | 'IS'
   | 'IS NOT';
 
-export type GetFieldTypeNoUndefined<
+export type GetFilterType<
   TSchema extends TableSchema,
   TColumn extends keyof TSchema['columns'],
   TOperator extends Operator,
-> = TOperator extends 'IN' | 'NOT IN'
-  ? Exclude<
-      SchemaValueToTSType<TSchema['columns'][TColumn]>,
-      null | undefined
-    >[]
-  : TOperator extends 'IS' | 'IS NOT'
-  ? Exclude<SchemaValueToTSType<TSchema['columns'][TColumn]>, undefined> | null
-  : Exclude<SchemaValueToTSType<TSchema['columns'][TColumn]>, undefined>;
+> = TOperator extends 'IS' | 'IS NOT'
+  ? // SchemaValueToTSType adds null if the type is optional, but we add null
+    // no matter what for dx reasons. See:
+    // https://github.com/rocicorp/mono/pull/3576#discussion_r1925792608
+    SchemaValueToTSType<TSchema['columns'][TColumn]> | null
+  : TOperator extends 'IN' | 'NOT IN'
+  ? // We don't want to compare to null in where clauses because it causes
+    // confusing results:
+    // https://zero.rocicorp.dev/docs/reading-data#comparing-to-null
+    Exclude<SchemaValueToTSType<TSchema['columns'][TColumn]>, null>[]
+  : Exclude<SchemaValueToTSType<TSchema['columns'][TColumn]>, null>;
 
 export type AvailableRelationships<
   TTable extends string,
@@ -64,23 +67,15 @@ type DestRow<
   ? PullRow<DestTableName<TTable, TSchema, TRelationship>, TSchema>
   : PullRow<DestTableName<TTable, TSchema, TRelationship>, TSchema> | undefined;
 
-type AddSubreturn<
-  TExistingReturn,
-  TSubselectReturn,
-  TAs extends string,
-> = undefined extends TExistingReturn
-  ?
-      | (Exclude<TExistingReturn, undefined> & {
-          readonly [K in TAs]: undefined extends TSubselectReturn
-            ? TSubselectReturn
-            : readonly TSubselectReturn[];
-        })
-      | undefined
-  : TExistingReturn & {
-      readonly [K in TAs]: undefined extends TSubselectReturn
-        ? TSubselectReturn
-        : readonly TSubselectReturn[];
-    };
+type AddSubreturn<TExistingReturn, TSubselectReturn, TAs extends string> = {
+  readonly [K in TAs]: undefined extends TSubselectReturn
+    ? TSubselectReturn
+    : readonly TSubselectReturn[];
+} extends infer TNewRelationship
+  ? undefined extends TExistingReturn
+    ? (Exclude<TExistingReturn, undefined> & TNewRelationship) | undefined
+    : TExistingReturn & TNewRelationship
+  : never;
 
 export type PullTableSchema<
   TTable extends string,
@@ -154,21 +149,13 @@ export interface Query<
     field: TSelector,
     op: TOperator,
     value:
-      | GetFieldTypeNoUndefined<
-          PullTableSchema<TTable, TSchema>,
-          TSelector,
-          TOperator
-        >
+      | GetFilterType<PullTableSchema<TTable, TSchema>, TSelector, TOperator>
       | ParameterReference,
   ): Query<TSchema, TTable, TReturn>;
   where<TSelector extends NoJsonSelector<PullTableSchema<TTable, TSchema>>>(
     field: TSelector,
     value:
-      | GetFieldTypeNoUndefined<
-          PullTableSchema<TTable, TSchema>,
-          TSelector,
-          '='
-        >
+      | GetFilterType<PullTableSchema<TTable, TSchema>, TSelector, '='>
       | ParameterReference,
   ): Query<TSchema, TTable, TReturn>;
   where(

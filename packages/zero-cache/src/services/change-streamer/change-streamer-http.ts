@@ -2,18 +2,18 @@ import websocket from '@fastify/websocket';
 import {LogContext} from '@rocicorp/logger';
 import {IncomingMessage} from 'node:http';
 import WebSocket from 'ws';
-import {type Worker} from '../../types/processes.js';
-import {streamIn, streamOut, type Source} from '../../types/streams.js';
-import {URLParams} from '../../types/url-params.js';
-import {closeWithProtocolError} from '../../types/ws.js';
-import {installWebSocketReceiver} from '../dispatcher/websocket-handoff.js';
-import {HttpService, type Options} from '../http-service.js';
+import {type Worker} from '../../types/processes.ts';
+import {streamIn, streamOut, type Source} from '../../types/streams.ts';
+import {URLParams} from '../../types/url-params.ts';
+import {closeWithError, PROTOCOL_ERROR} from '../../types/ws.ts';
+import {installWebSocketReceiver} from '../dispatcher/websocket-handoff.ts';
+import {HttpService, type Options} from '../http-service.ts';
 import {
   downstreamSchema,
   type ChangeStreamer,
   type Downstream,
   type SubscriberContext,
-} from './change-streamer.js';
+} from './change-streamer.ts';
 
 const DIRECT_PATH_PATTERN = '/replication/:version/changes';
 const TENANT_PATH_PATTERN = '/:tenant' + DIRECT_PATH_PATTERN;
@@ -32,7 +32,6 @@ export class ChangeStreamerHttpServer extends HttpService {
   ) {
     super('change-streamer-http-server', lc, opts, async fastify => {
       await fastify.register(websocket);
-      fastify.get('/', (_req, res) => res.send('OK'));
 
       // fastify does not support optional path components, so we just
       // register both patterns.
@@ -54,7 +53,7 @@ export class ChangeStreamerHttpServer extends HttpService {
     try {
       ctx = getSubscriberContext(req);
     } catch (err) {
-      closeWithProtocolError(this._lc, ws, err);
+      closeWithError(this._lc, ws, err, PROTOCOL_ERROR);
       return;
     }
     await this.#handleSubscription(ws, ctx);

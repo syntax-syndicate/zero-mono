@@ -17,7 +17,7 @@
     "@types/command-line-usage": "^5.0.2",
     "command-line-args": "^6.0.1",
     "command-line-usage": "^7.0.3",
-    "esbuild": "^0.20.2",
+    "esbuild": "^0.24.2",
     "get-port": "^7.0.0",
     "hash-wasm": "^4.9.0",
     "idb": "^7.0.1",
@@ -25,7 +25,7 @@
     "replicache": "15.2.1",
     "shared": "0.0.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3",
+    "typescript": "^5.7.3",
     "vite": "^5.4.9",
     "xbytes": "^1.7.0"
   },

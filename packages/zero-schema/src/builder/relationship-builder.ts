@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type {Relationship, TableSchema} from '../table-schema.js';
-import type {TableBuilderWithColumns} from './table-builder.js';
+import type {Relationship, TableSchema} from '../table-schema.ts';
+import type {TableBuilderWithColumns} from './table-builder.ts';
 
 type ConnectArg<TSourceField, TDestField, TDest extends TableSchema> = {
   readonly sourceField: TSourceField;
@@ -23,6 +23,7 @@ type OneConnection<TSourceField, TDestField, TDest extends TableSchema> = {
 };
 
 type Prev = [-1, 0, 1, 2, 3, 4, 5, 6];
+
 export type PreviousSchema<
   TSource extends TableSchema,
   K extends number,

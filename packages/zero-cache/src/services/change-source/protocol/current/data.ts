@@ -4,13 +4,13 @@
  * stored in the Change DB for catchup of old subscribers.
  */
 
-import * as v from '../../../../../../shared/src/valita.js';
-import {columnSpec, indexSpec, tableSpec} from '../../../../db/specs.js';
+import * as v from '../../../../../../shared/src/valita.ts';
+import {columnSpec, indexSpec, tableSpec} from '../../../../db/specs.ts';
 import {
   jsonValueSchema,
   type JSONObject,
-} from '../../../../types/bigint-json.js';
-import type {Satisfies} from '../../../../types/satisfies.js';
+} from '../../../../types/bigint-json.ts';
+import type {Satisfies} from '../../../../types/satisfies.ts';
 
 export const beginSchema = v.object({
   tag: v.literal('begin'),
@@ -25,16 +25,20 @@ export const rollbackSchema = v.object({
 });
 
 export const relationSchema = v.object({
-  tag: v.literal('relation'),
   schema: v.string(),
   name: v.string(),
-  replicaIdentity: v.union(
-    v.literal('default'),
-    v.literal('nothing'),
-    v.literal('full'),
-    v.literal('index'),
-  ),
   keyColumns: v.array(v.string()),
+
+  // Deprecated tags will be removed in a later release.
+  tag: v.literal('relation').optional(),
+  replicaIdentity: v
+    .union(
+      v.literal('default'),
+      v.literal('nothing'),
+      v.literal('full'),
+      v.literal('index'),
+    )
+    .optional(),
 });
 
 export const rowSchema = v.record(jsonValueSchema);

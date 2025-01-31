@@ -2,10 +2,12 @@
  * These types represent the _compiled_ config whereas `define-config` types represent the _source_ config.
  */
 
-import {parseOptions, type Config} from '../../../shared/src/options.js';
-import * as v from '../../../shared/src/valita.js';
-import {runtimeDebugFlags} from '../../../zqlite/src/runtime-debug.js';
-import {singleProcessMode} from '../types/processes.js';
+import {parseOptions, type Config} from '../../../shared/src/options.ts';
+import * as v from '../../../shared/src/valita.ts';
+import {runtimeDebugFlags} from '../../../zqlite/src/runtime-debug.ts';
+import {singleProcessMode} from '../types/processes.ts';
+import {logOptions} from '../../../otel/src/log-options.ts';
+export type {LogConfig} from '../../../otel/src/log-options.ts';
 
 /**
  * Configures the view of the upstream database replicated to this zero-cache.
@@ -50,35 +52,6 @@ const shardOptions = {
 };
 
 export type ShardConfig = Config<typeof shardOptions>;
-
-const logOptions = {
-  level: v
-    .union(
-      v.literal('debug'),
-      v.literal('info'),
-      v.literal('warn'),
-      v.literal('error'),
-    )
-    .default('info'),
-
-  format: {
-    type: v.union(v.literal('text'), v.literal('json')).default('text'),
-    desc: [
-      `Use {bold text} for developer-friendly console logging`,
-      `and {bold json} for consumption by structured-logging services`,
-    ],
-  },
-
-  traceCollector: {
-    type: v.string().optional(),
-    desc: [
-      `The URL of the trace collector to which to send trace data. Traces are sent over http.`,
-      `Port defaults to 4318 for most collectors.`,
-    ],
-  },
-};
-
-export type LogConfig = Config<typeof logOptions>;
 
 const perUserMutationLimit = {
   max: {
@@ -134,6 +107,17 @@ export const zeroOptions = {
       ],
     },
 
+    type: {
+      type: v.union(v.literal('pg'), v.literal('custom')).default('pg'),
+      desc: [
+        `The meaning of the {bold upstream-db} depends on the upstream type:`,
+        `* {bold pg}: The connection database string, e.g. "postgres://..."`,
+        `* {bold custom}: The base URI of the change source "endpoint, e.g.`,
+        `          "https://my-change-source.dev/changes/v0/stream?apiKey=..."`,
+      ],
+      hidden: true, // TODO: Unhide when ready to officially support.
+    },
+
     maxConns: {
       type: v.number().default(20),
       desc: [
@@ -143,7 +127,7 @@ export const zeroOptions = {
         `replication stream.`,
         ``,
         `Note that this number must allow for at least one connection per`,
-        `sync worker, or zero-cache will fail to start. See {bold --numSyncWorkers}`,
+        `sync worker, or zero-cache will fail to start. See {bold num-sync-workers}`,
       ],
     },
 
@@ -171,7 +155,7 @@ export const zeroOptions = {
         `This is divided evenly amongst sync workers.`,
         ``,
         `Note that this number must allow for at least one connection per`,
-        `sync worker, or zero-cache will fail to start. See {bold --numSyncWorkers}`,
+        `sync worker, or zero-cache will fail to start. See {bold num-sync-workers}`,
       ],
     },
 
@@ -239,10 +223,7 @@ export const zeroOptions = {
 
   port: {
     type: v.number().default(4848),
-    desc: [
-      `The main port for client connections.`,
-      `Internally, zero-cache will also listen on the 2 ports after {bold --port}.`,
-    ],
+    desc: [`The port for sync connections.`],
   },
 
   changeStreamerPort: {
@@ -253,19 +234,6 @@ export const zeroOptions = {
       `runs in the same process in local development.`,
       ``,
       `If unspecified, defaults to {bold --port} + 1.`,
-    ],
-  },
-
-  heartbeatMonitorPort: {
-    type: v.number().optional(),
-    desc: [
-      `The port on which the heartbeat monitor listens for heartbeat`,
-      `health checks. Once health checks are received at this port,`,
-      `the monitor considers it a keepalive signal and triggers a drain`,
-      `if health checks stop for more than 15 seconds. If health checks`,
-      `never arrive on this port, the monitor does nothing (i.e. opt-in).`,
-      ``,
-      `If unspecified, defaults to {bold --port} + 2.`,
     ],
   },
 
@@ -406,6 +374,12 @@ const debugOptions = {
     hash: {
       type: v.string().optional(),
       desc: ['Hash of the query to fetch the AST for.'],
+    },
+    query: {
+      type: v.string().optional(),
+      desc: [
+        `Query to be timed in the form of: z.query.table.where(...).related(...).etc`,
+      ],
     },
   },
 };

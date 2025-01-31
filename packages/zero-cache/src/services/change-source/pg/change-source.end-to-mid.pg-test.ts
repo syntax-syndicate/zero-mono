@@ -1,20 +1,20 @@
 import {LogContext} from '@rocicorp/logger';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
-import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.js';
-import {Queue} from '../../../../../shared/src/queue.js';
-import type {Database} from '../../../../../zqlite/src/db.js';
-import {listIndexes, listTables} from '../../../db/lite-tables.js';
-import type {LiteIndexSpec, LiteTableSpec} from '../../../db/specs.js';
-import {getConnectionURI, testDBs} from '../../../test/db.js';
-import {DbFile, expectMatchingObjectsInTables} from '../../../test/lite.js';
-import type {JSONValue} from '../../../types/bigint-json.js';
-import type {PostgresDB} from '../../../types/pg.js';
-import type {Source} from '../../../types/streams.js';
-import type {MessageProcessor} from '../../replicator/incremental-sync.js';
-import {createMessageProcessor} from '../../replicator/test-utils.js';
-import type {DataChange} from '../protocol/current/data.js';
-import type {ChangeStreamMessage} from '../protocol/current/downstream.js';
-import {initializeChangeSource} from './change-source.js';
+import {createSilentLogContext} from '../../../../../shared/src/logging-test-utils.ts';
+import {Queue} from '../../../../../shared/src/queue.ts';
+import type {Database} from '../../../../../zqlite/src/db.ts';
+import {listIndexes, listTables} from '../../../db/lite-tables.ts';
+import type {LiteIndexSpec, LiteTableSpec} from '../../../db/specs.ts';
+import {getConnectionURI, testDBs} from '../../../test/db.ts';
+import {DbFile, expectMatchingObjectsInTables} from '../../../test/lite.ts';
+import {type JSONValue} from '../../../types/bigint-json.ts';
+import type {PostgresDB} from '../../../types/pg.ts';
+import type {Source} from '../../../types/streams.ts';
+import type {ChangeProcessor} from '../../replicator/change-processor.ts';
+import {createChangeProcessor} from '../../replicator/test-utils.ts';
+import type {DataChange} from '../protocol/current/data.ts';
+import type {ChangeStreamMessage} from '../protocol/current/downstream.ts';
+import {initializePostgresChangeSource} from './change-source.ts';
 
 const SHARD_ID = 'change_source_end_to_mid_test_id';
 
@@ -26,14 +26,14 @@ const SHARD_ID = 'change_source_end_to_mid_test_id';
  * - Applying the changes to the replica with a MessageProcessor
  * - Verifying the resulting SQLite schema and/or data on the replica.
  */
-describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
+describe('change-source/pg/end-to-mid-test', {timeout: 30000}, () => {
   let lc: LogContext;
   let upstream: PostgresDB;
   let replicaDbFile: DbFile;
   let replica: Database;
   let changes: Source<ChangeStreamMessage>;
-  let downstream: Queue<ChangeStreamMessage>;
-  let replicator: MessageProcessor;
+  let downstream: Queue<ChangeStreamMessage | 'timeout'>;
+  let replicator: ChangeProcessor;
 
   beforeAll(async () => {
     lc = createSilentLogContext();
@@ -70,7 +70,7 @@ describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
     `);
 
     const source = (
-      await initializeChangeSource(
+      await initializePostgresChangeSource(
         lc,
         upstreamURI,
         {id: SHARD_ID, publications: ['zero_some_public', 'zero_all_test']},
@@ -82,8 +82,8 @@ describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
 
     changes = stream.changes;
     downstream = drainToQueue(changes);
-    replicator = createMessageProcessor(replica);
-  });
+    replicator = createChangeProcessor(replica);
+  }, 30000);
 
   afterAll(async () => {
     changes?.cancel();
@@ -93,8 +93,8 @@ describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
 
   function drainToQueue(
     sub: Source<ChangeStreamMessage>,
-  ): Queue<ChangeStreamMessage> {
-    const queue = new Queue<ChangeStreamMessage>();
+  ): Queue<ChangeStreamMessage | 'timeout'> {
+    const queue = new Queue<ChangeStreamMessage | 'timeout'>();
     void (async () => {
       for await (const msg of sub) {
         void queue.enqueue(msg);
@@ -106,7 +106,10 @@ describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
   async function nextTransaction(): Promise<DataChange[]> {
     const data: DataChange[] = [];
     for (;;) {
-      const change = await downstream.dequeue();
+      const change = await downstream.dequeue('timeout', 2000);
+      if (change === 'timeout') {
+        throw new Error('timed out waiting for change');
+      }
       const [type] = change;
       if (type !== 'control' && type !== 'status') {
         replicator.processMessage(lc, change);
@@ -539,6 +542,104 @@ describe('change-source/pg/end-to-mid-test', {timeout: 10000}, () => {
               dflt: null,
               notNull: false,
               pos: 3,
+            },
+          },
+          name: 'zero.bar',
+        },
+      ],
+      [],
+    ],
+    [
+      'add multiple columns',
+      'ALTER TABLE zero.bar ADD foo TEXT, ADD bar TEXT;',
+      [{tag: 'add-column'}, {tag: 'add-column'}],
+      {['zero.bar']: []},
+      [
+        {
+          columns: {
+            ['_0_version']: {
+              characterMaximumLength: null,
+              dataType: 'TEXT',
+              dflt: null,
+              notNull: false,
+              pos: 2,
+            },
+            id: {
+              characterMaximumLength: null,
+              dataType: 'int8|NOT_NULL',
+              dflt: null,
+              notNull: false,
+              pos: 1,
+            },
+            handle: {
+              characterMaximumLength: null,
+              dataType: 'text|NOT_NULL',
+              dflt: null,
+              notNull: false,
+              pos: 3,
+            },
+            bar: {
+              characterMaximumLength: null,
+              dataType: 'TEXT',
+              dflt: null,
+              notNull: false,
+              pos: 4,
+            },
+            foo: {
+              characterMaximumLength: null,
+              dataType: 'TEXT',
+              dflt: null,
+              notNull: false,
+              pos: 5,
+            },
+          },
+          name: 'zero.bar',
+        },
+      ],
+      [],
+    ],
+    [
+      'alter, add, and drop columns',
+      'ALTER TABLE zero.bar ALTER foo SET NOT NULL, ADD boo TEXT, DROP bar;',
+      [{tag: 'drop-column'}, {tag: 'update-column'}, {tag: 'add-column'}],
+      {['zero.bar']: []},
+      [
+        {
+          columns: {
+            ['_0_version']: {
+              characterMaximumLength: null,
+              dataType: 'TEXT',
+              dflt: null,
+              notNull: false,
+              pos: 2,
+            },
+            id: {
+              characterMaximumLength: null,
+              dataType: 'int8|NOT_NULL',
+              dflt: null,
+              notNull: false,
+              pos: 1,
+            },
+            handle: {
+              characterMaximumLength: null,
+              dataType: 'text|NOT_NULL',
+              dflt: null,
+              notNull: false,
+              pos: 3,
+            },
+            foo: {
+              characterMaximumLength: null,
+              dataType: 'text|NOT_NULL',
+              dflt: null,
+              notNull: false,
+              pos: 4,
+            },
+            boo: {
+              characterMaximumLength: null,
+              dataType: 'TEXT',
+              dflt: null,
+              notNull: false,
+              pos: 5,
             },
           },
           name: 'zero.bar',

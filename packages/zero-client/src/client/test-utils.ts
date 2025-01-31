@@ -1,36 +1,39 @@
 import type {LogLevel} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
 import type {SinonFakeTimers} from 'sinon';
-import {assert} from '../../../shared/src/asserts.js';
-import type {Enum} from '../../../shared/src/enum.js';
-import {TestLogSink} from '../../../shared/src/logging-test-utils.js';
-import * as ErrorKind from '../../../zero-protocol/src/error-kind-enum.js';
-import {
-  type ConnectedMessage,
-  type Downstream,
-  type ErrorMessage,
-  type PokeEndBody,
-  type PokeEndMessage,
-  type PokePartBody,
-  type PokePartMessage,
-  type PokeStartBody,
-  type PokeStartMessage,
-  type PongMessage,
-  type PullResponseBody,
-  type PullResponseMessage,
-  upstreamSchema,
-} from '../../../zero-protocol/src/mod.js';
-import type {Schema} from '../../../zero-schema/src/mod.js';
-import * as ConnectionState from './connection-state-enum.js';
-import type {LogOptions} from './log-options.js';
-import type {ZeroOptions} from './options.js';
+import {assert} from '../../../shared/src/asserts.ts';
+import type {Enum} from '../../../shared/src/enum.ts';
+import {TestLogSink} from '../../../shared/src/logging-test-utils.ts';
+import type {ConnectedMessage} from '../../../zero-protocol/src/connect.ts';
+import type {Downstream} from '../../../zero-protocol/src/down.ts';
+import * as ErrorKind from '../../../zero-protocol/src/error-kind-enum.ts';
+import type {ErrorMessage} from '../../../zero-protocol/src/error.ts';
+import type {
+  PokeEndBody,
+  PokeEndMessage,
+  PokePartBody,
+  PokePartMessage,
+  PokeStartBody,
+  PokeStartMessage,
+} from '../../../zero-protocol/src/poke.ts';
+import type {PongMessage} from '../../../zero-protocol/src/pong.ts';
+import type {
+  PullResponseBody,
+  PullResponseMessage,
+} from '../../../zero-protocol/src/pull.ts';
+import {upstreamSchema} from '../../../zero-protocol/src/up.ts';
+import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import * as ConnectionState from './connection-state-enum.ts';
+import type {LogOptions} from './log-options.ts';
+import type {ZeroOptions} from './options.ts';
 import {
   type TestingContext,
   Zero,
   createLogOptionsSymbol,
   exposedToTestingSymbol,
   onSetConnectionStateSymbol,
-} from './zero.js';
+} from './zero.ts';
+import type {CustomMutatorDefs} from './custom.ts';
 
 type ConnectionState = Enum<typeof ConnectionState>;
 type ErrorKind = Enum<typeof ErrorKind>;
@@ -67,7 +70,10 @@ export class MockSocket extends EventTarget {
   }
 }
 
-export class TestZero<const S extends Schema> extends Zero<S> {
+export class TestZero<
+  const S extends Schema,
+  MD extends CustomMutatorDefs<S> = CustomMutatorDefs<S>,
+> extends Zero<S, MD> {
   #connectionStateResolvers: Set<{
     state: ConnectionState;
     resolve: (state: ConnectionState) => void;
@@ -204,10 +210,13 @@ declare const TESTING: boolean;
 
 let testZeroCounter = 0;
 
-export function zeroForTest<const S extends Schema>(
-  options: Partial<ZeroOptions<S>> = {},
+export function zeroForTest<
+  const S extends Schema,
+  MD extends CustomMutatorDefs<S> = CustomMutatorDefs<S>,
+>(
+  options: Partial<ZeroOptions<S, MD>> = {},
   errorOnUpdateNeeded = true,
-): TestZero<S> {
+): TestZero<S, MD> {
   // Special case kvStore. If not present we default to 'mem'. This allows
   // passing `undefined` to get the default behavior.
   const newOptions = {...options};
@@ -231,7 +240,7 @@ export function zeroForTest<const S extends Schema>(
         }
       : undefined,
     ...newOptions,
-  } satisfies ZeroOptions<S>);
+  } satisfies ZeroOptions<S, MD>);
 
   return r;
 }

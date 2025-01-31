@@ -5,14 +5,14 @@ import {WebSocketServer, type WebSocket} from 'ws';
 import {
   serializableSubset,
   type IncomingMessageSubset,
-} from '../../types/http.js';
+} from '../../types/http.ts';
 import {
   MESSAGE_TYPES,
   type Receiver,
   type Sender,
   type Worker,
-} from '../../types/processes.js';
-import {closeWithProtocolError} from '../../types/ws.js';
+} from '../../types/processes.ts';
+import {closeWithError, PROTOCOL_ERROR} from '../../types/ws.ts';
 
 export type WebSocketHandoff<P> = (message: IncomingMessageSubset) => {
   payload: P;
@@ -56,7 +56,7 @@ export function installWebSocketHandoff<P>(
       // (at least from Chrome) and doesn't report any meaningful error in the browser.
       // Instead, finish the upgrade to a websocket and then close it with an error.
       wss.handleUpgrade(message as IncomingMessage, socket, head, ws =>
-        closeWithProtocolError(lc, ws, error),
+        closeWithError(lc, ws, error, PROTOCOL_ERROR),
       );
     }
   };

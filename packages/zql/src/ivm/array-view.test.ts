@@ -1,20 +1,34 @@
 import {expect, test} from 'vitest';
-import {assertArray, unreachable} from '../../../shared/src/asserts.js';
-import type {ReadonlyJSONValue} from '../../../shared/src/json.js';
-import {stringCompare} from '../../../shared/src/string-compare.js';
-import {ArrayView} from './array-view.js';
-import type {Change} from './change.js';
-import {Join} from './join.js';
-import {MemoryStorage} from './memory-storage.js';
-import type {Input} from './operator.js';
-import type {SourceSchema} from './schema.js';
-import {Take} from './take.js';
-import {createSource} from './test/source-factory.js';
+import {assertArray, unreachable} from '../../../shared/src/asserts.ts';
+import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
+import {stringCompare} from '../../../shared/src/string-compare.ts';
+import {ArrayView} from './array-view.ts';
+import type {Change} from './change.ts';
+import {Join} from './join.ts';
+import {MemoryStorage} from './memory-storage.ts';
+import type {Input} from './operator.ts';
+import type {SourceSchema} from './schema.ts';
+import {Take} from './take.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 test('basics', () => {
-  const ms = createSource('table', {a: {type: 'number'}, b: {type: 'string'}}, [
-    'a',
-  ]);
+  const ms = createSource(
+    lc,
+    logConfig,
+    'table',
+    {a: {type: 'number'}, b: {type: 'string'}},
+    ['a'],
+  );
   ms.push({row: {a: 1, b: 'a'}, type: 'add'});
   ms.push({row: {a: 2, b: 'b'}, type: 'add'});
 
@@ -74,9 +88,13 @@ test('basics', () => {
 });
 
 test('single-format', () => {
-  const ms = createSource('table', {a: {type: 'number'}, b: {type: 'string'}}, [
-    'a',
-  ]);
+  const ms = createSource(
+    lc,
+    logConfig,
+    'table',
+    {a: {type: 'number'}, b: {type: 'string'}},
+    ['a'],
+  );
   ms.push({row: {a: 1, b: 'a'}, type: 'add'});
 
   const view = new ArrayView(
@@ -117,9 +135,13 @@ test('single-format', () => {
 });
 
 test('hydrate-empty', () => {
-  const ms = createSource('table', {a: {type: 'number'}, b: {type: 'string'}}, [
-    'a',
-  ]);
+  const ms = createSource(
+    lc,
+    logConfig,
+    'table',
+    {a: {type: 'number'}, b: {type: 'string'}},
+    ['a'],
+  );
 
   const view = new ArrayView(
     ms.connect([
@@ -142,6 +164,8 @@ test('hydrate-empty', () => {
 
 test('tree', () => {
   const ms = createSource(
+    lc,
+    logConfig,
     'table',
     {id: {type: 'number'}, name: {type: 'string'}, childID: {type: 'number'}},
     ['id'],
@@ -414,6 +438,8 @@ test('tree', () => {
 
 test('tree-single', () => {
   const ms = createSource(
+    lc,
+    logConfig,
     'table',
     {id: {type: 'number'}, name: {type: 'string'}, childID: {type: 'number'}},
     ['id'],
@@ -569,7 +595,7 @@ test('collapse', () => {
         name: 'issue',
       },
       relationships: {
-        labels: [
+        labels: () => [
           {
             row: {
               id: 1,
@@ -578,7 +604,7 @@ test('collapse', () => {
               extra: 'a',
             },
             relationships: {
-              labels: [
+              labels: () => [
                 {
                   row: {
                     id: 1,
@@ -629,9 +655,53 @@ test('collapse', () => {
 
   view.push({
     type: 'child',
-    row: {
-      id: 1,
-      name: 'issue',
+    node: {
+      row: {
+        id: 1,
+        name: 'issue',
+      },
+      relationships: {
+        labels: () => [
+          {
+            row: {
+              id: 1,
+              issueId: 1,
+              labelId: 1,
+              extra: 'a',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 1,
+                    name: 'label',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+          {
+            row: {
+              id: 2,
+              issueId: 1,
+              labelId: 2,
+              extra: 'b',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 2,
+                    name: 'label2',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+        ],
+      },
     },
     child: {
       relationshipName: 'labels',
@@ -645,7 +715,7 @@ test('collapse', () => {
             extra: 'b',
           },
           relationships: {
-            labels: [
+            labels: () => [
               {
                 row: {
                   id: 2,
@@ -681,9 +751,53 @@ test('collapse', () => {
   // edit the hidden row
   view.push({
     type: 'child',
-    row: {
-      id: 1,
-      name: 'issue',
+    node: {
+      row: {
+        id: 1,
+        name: 'issue',
+      },
+      relationships: {
+        labels: () => [
+          {
+            row: {
+              id: 1,
+              issueId: 1,
+              labelId: 1,
+              extra: 'a',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 1,
+                    name: 'label',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+          {
+            row: {
+              id: 2,
+              issueId: 1,
+              labelId: 2,
+              extra: 'b2',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 2,
+                    name: 'label2',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+        ],
+      },
     },
     child: {
       relationshipName: 'labels',
@@ -696,7 +810,17 @@ test('collapse', () => {
             labelId: 2,
             extra: 'b',
           },
-          relationships: {},
+          relationships: {
+            labels: () => [
+              {
+                row: {
+                  id: 2,
+                  name: 'label2',
+                },
+                relationships: {},
+              },
+            ],
+          },
         },
         node: {
           row: {
@@ -705,7 +829,17 @@ test('collapse', () => {
             labelId: 2,
             extra: 'b2',
           },
-          relationships: {},
+          relationships: {
+            labels: () => [
+              {
+                row: {
+                  id: 2,
+                  name: 'label2',
+                },
+                relationships: {},
+              },
+            ],
+          },
         },
       },
     },
@@ -732,19 +866,76 @@ test('collapse', () => {
   // edit the leaf
   view.push({
     type: 'child',
-    row: {
-      id: 1,
-      name: 'issue',
+    node: {
+      row: {
+        id: 1,
+        name: 'issue',
+      },
+      relationships: {
+        labels: () => [
+          {
+            row: {
+              id: 1,
+              issueId: 1,
+              labelId: 1,
+              extra: 'a',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 1,
+                    name: 'label',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+          {
+            row: {
+              id: 2,
+              issueId: 1,
+              labelId: 2,
+              extra: 'b2',
+            },
+            relationships: {
+              labels: () => [
+                {
+                  row: {
+                    id: 2,
+                    name: 'label2x',
+                  },
+                  relationships: {},
+                },
+              ],
+            },
+          },
+        ],
+      },
     },
     child: {
       relationshipName: 'labels',
       change: {
         type: 'child',
-        row: {
-          id: 2,
-          issueId: 1,
-          labelId: 2,
-          extra: 'b2',
+        node: {
+          row: {
+            id: 2,
+            issueId: 1,
+            labelId: 2,
+            extra: 'b2',
+          },
+          relationships: {
+            labels: () => [
+              {
+                row: {
+                  id: 2,
+                  name: 'label2x',
+                },
+                relationships: {},
+              },
+            ],
+          },
         },
         child: {
           relationshipName: 'labels',
@@ -866,7 +1057,7 @@ test('collapse-single', () => {
         name: 'issue',
       },
       relationships: {
-        labels: [
+        labels: () => [
           {
             row: {
               id: 1,
@@ -874,7 +1065,7 @@ test('collapse-single', () => {
               labelId: 1,
             },
             relationships: {
-              labels: [
+              labels: () => [
                 {
                   row: {
                     id: 1,
@@ -908,9 +1099,13 @@ test('collapse-single', () => {
 });
 
 test('basic with edit pushes', () => {
-  const ms = createSource('table', {a: {type: 'number'}, b: {type: 'string'}}, [
-    'a',
-  ]);
+  const ms = createSource(
+    lc,
+    logConfig,
+    'table',
+    {a: {type: 'number'}, b: {type: 'string'}},
+    ['a'],
+  );
   ms.push({row: {a: 1, b: 'a'}, type: 'add'});
   ms.push({row: {a: 2, b: 'b'}, type: 'add'});
 
@@ -957,6 +1152,8 @@ test('basic with edit pushes', () => {
 
 test('tree edit', () => {
   const ms = createSource(
+    lc,
+    logConfig,
     'table',
     {
       id: {type: 'number'},
@@ -1101,9 +1298,13 @@ test('tree edit', () => {
 });
 
 test('edit to change the order', () => {
-  const ms = createSource('table', {a: {type: 'number'}, b: {type: 'string'}}, [
-    'a',
-  ]);
+  const ms = createSource(
+    lc,
+    logConfig,
+    'table',
+    {a: {type: 'number'}, b: {type: 'string'}},
+    ['a'],
+  );
   for (const row of [
     {a: 10, b: 'a'},
     {a: 20, b: 'b'},
@@ -1212,7 +1413,7 @@ test('edit to preserve relationships', () => {
     node: {
       row: {id: 1, title: 'issue1'},
       relationships: {
-        labels: [
+        labels: () => [
           {
             row: {id: 1, name: 'label1'},
             relationships: {},
@@ -1226,7 +1427,7 @@ test('edit to preserve relationships', () => {
     node: {
       row: {id: 2, title: 'issue2'},
       relationships: {
-        labels: [
+        labels: () => [
           {
             row: {id: 2, name: 'label2'},
             relationships: {},

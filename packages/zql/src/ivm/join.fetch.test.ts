@@ -1,18 +1,27 @@
 import {expect, suite, test} from 'vitest';
-import {assert} from '../../../shared/src/asserts.js';
-import type {JSONValue} from '../../../shared/src/json.js';
-import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.js';
-import type {SchemaValue} from '../../../zero-schema/src/table-schema.js';
-import {Catch} from './catch.js';
-import {SetOfConstraint} from './constraint.js';
-import type {Node} from './data.js';
-import {Join, makeStorageKey, makeStorageKeyPrefix} from './join.js';
-import {MemoryStorage} from './memory-storage.js';
-import type {SourceSchema} from './schema.js';
-import {Snitch, type SnitchMessage} from './snitch.js';
-import {createSource} from './test/source-factory.js';
+import {assert} from '../../../shared/src/asserts.ts';
+import type {JSONValue} from '../../../shared/src/json.ts';
+import type {CompoundKey, Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
+import type {SchemaValue} from '../../../zero-schema/src/table-schema.ts';
+import {Catch, type CaughtNode} from './catch.ts';
+import {SetOfConstraint} from './constraint.ts';
+import {Join, makeStorageKey, makeStorageKeyPrefix} from './join.ts';
+import {MemoryStorage} from './memory-storage.ts';
+import type {SourceSchema} from './schema.ts';
+import {Snitch, type SnitchMessage} from './snitch.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 suite('fetch one:many', () => {
   const base = {
@@ -2139,7 +2148,13 @@ function fetchTest(t: FetchTest): FetchTestResults {
 
   const sources = t.sources.map((rows, i) => {
     const ordering = t.sorts?.[i] ?? [['id', 'asc']];
-    const source = createSource(`t${i}`, t.columns[i], t.primaryKeys[i]);
+    const source = createSource(
+      lc,
+      logConfig,
+      `t${i}`,
+      t.columns[i],
+      t.primaryKeys[i],
+    );
     for (const row of rows) {
       source.push({type: 'add', row});
     }
@@ -2273,7 +2288,7 @@ type FetchTest = {
 
 type FetchTestResults = {
   fetchMessages: SnitchMessage[];
-  hydrate: Node[];
+  hydrate: CaughtNode[];
   storage: Record<string, JSONValue>[];
 };
 

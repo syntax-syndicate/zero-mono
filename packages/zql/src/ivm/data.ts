@@ -3,10 +3,10 @@ import {
   assertBoolean,
   assertNumber,
   assertString,
-} from '../../../shared/src/asserts.js';
-import type {Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row, Value} from '../../../zero-protocol/src/data.js';
-import type {Stream} from './stream.js';
+} from '../../../shared/src/asserts.ts';
+import type {Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row, Value} from '../../../zero-protocol/src/data.ts';
+import type {Stream} from './stream.ts';
 
 /**
  * A row flowing through the pipeline, plus its relationships.
@@ -14,7 +14,7 @@ import type {Stream} from './stream.js';
  */
 export type Node = {
   row: Row;
-  relationships: Record<string, Stream<Node>>;
+  relationships: Record<string, () => Stream<Node>>;
 };
 
 /**
@@ -108,4 +108,12 @@ export function valuesEqual(a: Value, b: Value): boolean {
     return false;
   }
   return a === b;
+}
+
+export function drainStreams(node: Node) {
+  for (const stream of Object.values(node.relationships)) {
+    for (const node of stream()) {
+      drainStreams(node);
+    }
+  }
 }

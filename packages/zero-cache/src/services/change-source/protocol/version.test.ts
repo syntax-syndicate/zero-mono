@@ -1,9 +1,9 @@
 import {expect, test} from 'vitest';
-import {h64} from '../../../../../shared/src/hash.js';
-import {changeStreamMessageSchema} from './current/downstream.js';
-import {CHANGE_SOURCE_PATH} from './current/path.js';
-import {changeSourceUpstreamSchema} from './current/upstream.js';
-import {v0} from './mod.js';
+import {h64} from '../../../../../shared/src/hash.ts';
+import * as v0 from './current.ts';
+import {changeStreamMessageSchema} from './current/downstream.ts';
+import {CHANGE_SOURCE_PATH} from './current/path.ts';
+import {changeSourceUpstreamSchema} from './current/upstream.ts';
 
 function t(
   module: {
@@ -38,9 +38,9 @@ test('protocol versions', () => {
   // Then update the version number of the `CHANGE_SOURCE_PATH`
   // in current and export it appropriately as the new version
   // in `mod.ts`.
-  t(current, '1kfqmopbfu1mq', '/changes/v0/stream');
+  t(current, '268ode0tvphut', '/changes/v0/stream');
   // During initial development, we use v0 as a non-stable
   // version (i.e. breaking change are allowed). Once the
   // protocol graduates to v1, versions must be stable.
-  t(v0, '1kfqmopbfu1mq', '/changes/v0/stream');
+  t(v0, '268ode0tvphut', '/changes/v0/stream');
 });

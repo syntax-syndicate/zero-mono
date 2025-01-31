@@ -1,19 +1,20 @@
 import {describe, expect, test} from 'vitest';
-import type {JSONValue} from '../../shared/src/json.js';
-import {createSilentLogContext} from '../../shared/src/logging-test-utils.js';
-import type {Ordering} from '../../zero-protocol/src/ast.js';
-import type {Row, Value} from '../../zero-protocol/src/data.js';
-import type {PrimaryKey} from '../../zero-protocol/src/primary-key.js';
-import {Catch} from '../../zql/src/ivm/catch.js';
-import type {Change} from '../../zql/src/ivm/change.js';
-import {makeComparator} from '../../zql/src/ivm/data.js';
-import {Database} from './db.js';
-import {format} from './internal/sql.js';
+import type {JSONValue} from '../../shared/src/json.ts';
+import {createSilentLogContext} from '../../shared/src/logging-test-utils.ts';
+import type {Ordering} from '../../zero-protocol/src/ast.ts';
+import type {Row, Value} from '../../zero-protocol/src/data.ts';
+import type {PrimaryKey} from '../../zero-protocol/src/primary-key.ts';
+import {Catch} from '../../zql/src/ivm/catch.ts';
+import type {Change} from '../../zql/src/ivm/change.ts';
+import {makeComparator} from '../../zql/src/ivm/data.ts';
+import {Database} from './db.ts';
+import {format} from './internal/sql.ts';
 import {
   filtersToSQL,
   TableSource,
   UnsupportedValueError,
-} from './table-source.js';
+} from './table-source.ts';
+import type {LogConfig} from '../../otel/src/log-options.ts';
 
 const columns = {
   id: {type: 'string'},
@@ -21,6 +22,14 @@ const columns = {
   b: {type: 'number'},
   c: {type: 'number'},
 } as const;
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 describe('fetching from a table source', () => {
   type Foo = {id: string; a: number; b: number; c: number};
@@ -173,6 +182,8 @@ describe('fetching from a table source', () => {
     },
   ] as const)('$name', ({sourceArgs, fetchArgs, expectedRows}) => {
     const source = new TableSource(
+      lc,
+      logConfig,
       'table-source.test.ts',
       db,
       sourceArgs[0],
@@ -262,6 +273,8 @@ describe('fetched value types', () => {
       );
       stmt.run(c.input);
       const source = new TableSource(
+        lc,
+        logConfig,
         'table-source.test.ts',
         db,
         'foo',
@@ -301,9 +314,15 @@ describe('no primary key', () => {
   stmt.run(['far', 234, 567, 333]);
   stmt.run(['boo', 345, 112, 444]);
   stmt.run(['foo', 345, 789, 555]);
-  const source = new TableSource('table-source.test.ts', db, 'foo', columns, [
-    'id',
-  ]);
+  const source = new TableSource(
+    lc,
+    logConfig,
+    'table-source.test.ts',
+    db,
+    'foo',
+    columns,
+    ['id'],
+  );
 
   test.each([
     [['id'], true],
@@ -318,7 +337,15 @@ describe('no primary key', () => {
     'requires primary key to be uniquely indexed: %o',
     (key, valid) => {
       const createSource = () =>
-        new TableSource('table-source.test.ts', db, 'foo', columns, key);
+        new TableSource(
+          lc,
+          logConfig,
+          'table-source.test.ts',
+          db,
+          'foo',
+          columns,
+          key,
+        );
       if (valid) {
         createSource();
       } else {
@@ -338,9 +365,7 @@ describe('no primary key', () => {
       ],
     ],
   ] satisfies [Ordering][])('disallows non-unique orderings: %o', sort => {
-    expect(() => source.connect(sort)).toThrowError(
-      'does not include uniquely indexed columns',
-    );
+    expect(() => source.connect(sort)).toThrowError('Cannot orderBy(');
   });
 
   test.each([
@@ -409,6 +434,8 @@ test('pushing values does the correct writes and outputs', () => {
     /* sql */ `CREATE TABLE foo (a, b, c, d, ignored, columns, PRIMARY KEY (a, b));`,
   );
   const source = new TableSource(
+    lc,
+    logConfig,
     'table-source.test.ts',
     db1,
     'foo',
@@ -673,6 +700,8 @@ test('getByKey', () => {
   );
 
   const source = new TableSource(
+    lc,
+    logConfig,
     'table-source.test.ts',
     db,
     'foo',

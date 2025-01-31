@@ -1,18 +1,18 @@
-import type {ExperimentalNoIndexDiff} from '../../../replicache/src/mod.js';
-import {assert, unreachable} from '../../../shared/src/asserts.js';
-import type {AST} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import type {TableSchema} from '../../../zero-schema/src/table-schema.js';
-import {MemorySource} from '../../../zql/src/ivm/memory-source.js';
-import {MemoryStorage} from '../../../zql/src/ivm/memory-storage.js';
-import type {Storage} from '../../../zql/src/ivm/operator.js';
-import type {Source} from '../../../zql/src/ivm/source.js';
+import type {NoIndexDiff} from '../../../replicache/src/btree/node.ts';
+import {assert, unreachable} from '../../../shared/src/asserts.ts';
+import type {AST} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import type {TableSchema} from '../../../zero-schema/src/table-schema.ts';
+import {MemorySource} from '../../../zql/src/ivm/memory-source.ts';
+import {MemoryStorage} from '../../../zql/src/ivm/memory-storage.ts';
+import type {Storage} from '../../../zql/src/ivm/operator.ts';
+import type {Source} from '../../../zql/src/ivm/source.ts';
 import type {
   CommitListener,
   GotCallback,
   QueryDelegate,
-} from '../../../zql/src/query/query-impl.js';
-import {ENTITIES_KEY_PREFIX} from './keys.js';
+} from '../../../zql/src/query/query-impl.ts';
+import {ENTITIES_KEY_PREFIX} from './keys.ts';
 
 export type AddQuery = (
   ast: AST,
@@ -89,7 +89,7 @@ export class ZeroContext implements QueryDelegate {
     return result as T;
   }
 
-  processChanges(changes: ExperimentalNoIndexDiff) {
+  processChanges(changes: NoIndexDiff) {
     try {
       this.batchViewUpdates(() => {
         for (const diff of changes) {

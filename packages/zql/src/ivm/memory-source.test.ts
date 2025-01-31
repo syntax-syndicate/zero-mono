@@ -1,20 +1,32 @@
 import {describe, expect, test} from 'vitest';
-import type {Ordering} from '../../../zero-protocol/src/ast.js';
-import type {Row} from '../../../zero-protocol/src/data.js';
-import {Catch} from './catch.js';
-import type {Change} from './change.js';
-import {compareRowsTest} from './data.test.js';
+import type {Ordering} from '../../../zero-protocol/src/ast.ts';
+import type {Row} from '../../../zero-protocol/src/data.ts';
+import {Catch} from './catch.ts';
+import type {Change} from './change.ts';
+import {compareRowsTest} from './data.test.ts';
 import {
   generateWithOverlayInner,
   MemorySource,
   overlaysForConstraintForTest,
   overlaysForStartAtForTest,
-} from './memory-source.js';
-import {createSource} from './test/source-factory.js';
+} from './memory-source.ts';
+import {createSource} from './test/source-factory.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
+
+const lc = createSilentLogContext();
+const logConfig: LogConfig = {
+  format: 'text',
+  level: 'debug',
+  ivmSampling: 0,
+  slowRowThreshold: 0,
+};
 
 test('schema', () => {
   compareRowsTest((order: Ordering) => {
-    const ms = createSource('table', {a: {type: 'string'}}, ['a']);
+    const ms = createSource(lc, logConfig, 'table', {a: {type: 'string'}}, [
+      'a',
+    ]);
     return ms.connect(order).getSchema().compareRows;
   });
 });
@@ -97,6 +109,8 @@ test('indexes get cleaned up when not needed', () => {
 
 test('push edit change', () => {
   const ms = createSource(
+    lc,
+    logConfig,
     'table',
     {a: {type: 'string'}, b: {type: 'string'}, c: {type: 'string'}},
     ['a'],
@@ -115,25 +129,43 @@ test('push edit change', () => {
     oldRow: {a: 'a', b: 'b', c: 'c'},
     row: {a: 'a', b: 'b2', c: 'c2'},
   });
-  expect(c.pushes).toEqual([
-    {
-      type: 'edit',
-      row: {a: 'a', b: 'b2', c: 'c2'},
-      oldRow: {a: 'a', b: 'b', c: 'c'},
-    },
-  ]);
-  expect(c.fetch()).toEqual([
-    {
-      row: {a: 'a', b: 'b2', c: 'c2'},
-      relationships: {},
-    },
-  ]);
+  expect(c.pushes).toMatchInlineSnapshot(`
+    [
+      {
+        "oldRow": {
+          "a": "a",
+          "b": "b",
+          "c": "c",
+        },
+        "row": {
+          "a": "a",
+          "b": "b2",
+          "c": "c2",
+        },
+        "type": "edit",
+      },
+    ]
+  `);
+  expect(c.fetch()).toMatchInlineSnapshot(`
+    [
+      {
+        "relationships": {},
+        "row": {
+          "a": "a",
+          "b": "b2",
+          "c": "c2",
+        },
+      },
+    ]
+  `);
 
   conn.destroy();
 });
 
 test('fetch during push edit change', () => {
   const ms = createSource(
+    lc,
+    logConfig,
     'table',
     {a: {type: 'string'}, b: {type: 'string'}, c: {type: 'string'}},
     ['a'],
@@ -162,12 +194,18 @@ test('fetch during push edit change', () => {
     oldRow: {a: 'a', b: 'b', c: 'c'},
     row: {a: 'a', b: 'b2', c: 'c2'},
   });
-  expect(fetchDuringPush).toEqual([
-    {
-      row: {a: 'a', b: 'b2', c: 'c2'},
-      relationships: {},
-    },
-  ]);
+  expect(fetchDuringPush).toMatchInlineSnapshot(`
+    [
+      {
+        "relationships": {},
+        "row": {
+          "a": "a",
+          "b": "b2",
+          "c": "c2",
+        },
+      },
+    ]
+  `);
 });
 
 describe('generateWithOverlayInner', () => {

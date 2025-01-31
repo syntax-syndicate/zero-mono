@@ -1,8 +1,8 @@
 import type {LogContext} from '@rocicorp/logger';
-import {installWebSocketHandoff} from '../../services/dispatcher/websocket-handoff.js';
-import {HttpService, type Options} from '../../services/http-service.js';
-import type {IncomingMessageSubset} from '../../types/http.js';
-import type {Worker} from '../../types/processes.js';
+import {installWebSocketHandoff} from '../../services/dispatcher/websocket-handoff.ts';
+import {HttpService, type Options} from '../../services/http-service.ts';
+import type {IncomingMessageSubset} from '../../types/http.ts';
+import type {Worker} from '../../types/processes.ts';
 
 type Tenant = {
   id: string;
@@ -23,7 +23,6 @@ export class TenantDispatcher extends HttpService {
     opts: Options,
   ) {
     super('tenant-dispatcher', lc, opts, fastify => {
-      fastify.get('/', (_req, res) => res.send('OK'));
       installWebSocketHandoff(lc, req => this.#handoff(req), fastify.server);
     });
 

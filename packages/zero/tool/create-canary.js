@@ -1,8 +1,8 @@
 //@ts-check
 
+import {execSync} from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import {execSync} from 'node:child_process';
 import * as path from 'path';
 
 /** @param {string[]} parts */
@@ -38,9 +38,8 @@ function writePackageData(packagePath, data) {
 
 /**
  * @param {string} version
- * @param {string} hash
  */
-function bumpCanaryVersion(version, hash) {
+function bumpCanaryVersion(version) {
   // Why this odd version format?
   //
   // I think it is important that builds be automated because I am very
@@ -53,12 +52,12 @@ function bumpCanaryVersion(version, hash) {
   //
   // Previously we constructed versions of the form:
   //
-  // major.minor.<year><month><day><hour><minute>+<hash>
+  // major.minor.<year><month><day><hour><minute>
   //
   // But these result in integer patch values that are larger than 32 bits and
   // Bun limits version components to 32 bits. So we now use:
   //
-  // major.minor.<year><month><day><counter>+<hash>
+  // major.minor.<year><month><day><counter>
   //
   // The counter can be up to 99, so we can have up to 100 versions per day.
   // If we ever find we need more than 100 releases per day (perhaps automated
@@ -67,9 +66,14 @@ function bumpCanaryVersion(version, hash) {
   //
   // This scheme gets up to roughly the year 4050 before running out of bits,
   // hopefully by then Bun has fixed this limitation.
-  const match = version.match(/^(\d+)\.(\d+)\.(\d{10})\+/);
+  //
+  // NOTE: We used to also include a build hash, but this was removed because
+  // there's no way to include them consistently across docker and npm and this
+  // was confusing people.
+  // See: https://discord.com/channels/830183651022471199/1325165395015110688/1325585636111155293
+  const match = version.match(/^(\d+)\.(\d+)\.(\d{10})/);
   if (!match) {
-    throw new Error('Cannot parse existing version');
+    throw new Error(`Cannot parse existing version: ${version}`);
   }
 
   const [, major, minor, prevPatch] = match;
@@ -90,7 +94,7 @@ function bumpCanaryVersion(version, hash) {
   }
 
   const patch = newPatchPrefix + String(newPatchCounter).padStart(2, '0');
-  return `${major}.${minor}.${patch}+${hash}`;
+  return `${major}.${minor}.${patch}`;
 }
 
 // To do a maintenance/cherry-pick release:
@@ -102,14 +106,6 @@ function bumpCanaryVersion(version, hash) {
 
 const buildBranch = process.argv[2] ?? 'main';
 console.log(`Releasing from branch: ${buildBranch}`);
-
-const npmAuthToken = execute("cat $HOME/.npmrc | grep '_authToken'", {
-  stdio: 'pipe',
-});
-if (!npmAuthToken) {
-  console.error('No npm auth token found in ~/.npmrc');
-  process.exit(1);
-}
 
 try {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zero-build-'));
@@ -128,9 +124,8 @@ try {
   //installs turbo and other build dependencies
   execute('npm install');
   const ZERO_PACKAGE_JSON_PATH = basePath('packages', 'zero', 'package.json');
-  const hash = execute('git rev-parse HEAD', {stdio: 'pipe'}).substring(0, 6);
   const currentPackageData = getPackageData(ZERO_PACKAGE_JSON_PATH);
-  const nextCanaryVersion = bumpCanaryVersion(currentPackageData.version, hash);
+  const nextCanaryVersion = bumpCanaryVersion(currentPackageData.version);
   console.log(`Current version is ${currentPackageData.version}`);
   console.log(`Next version is ${nextCanaryVersion}`);
   currentPackageData.version = nextCanaryVersion;
@@ -177,8 +172,6 @@ try {
   execute(`git checkout ${tagName}`);
   execute('npm publish --tag=canary', {cwd: basePath('packages', 'zero')});
 
-  const dockerCanaryVersion = nextCanaryVersion.replace(/\+/g, '-');
-
   try {
     // Check if our specific multiarch builder exists
     const builders = execute('docker buildx ls', {stdio: 'pipe'});
@@ -203,8 +196,7 @@ try {
         `docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --build-arg=ZERO_VERSION=${nextCanaryVersion} \
-    --build-arg=NPM_TOKEN=${npmAuthToken} \
-    -t rocicorp/zero:${dockerCanaryVersion} \
+    -t rocicorp/zero:${nextCanaryVersion} \
     -t rocicorp/zero:canary \
     --push .`,
         {cwd: basePath('packages', 'zero')},
@@ -225,10 +217,10 @@ try {
   console.log(`🎉 Success!`);
   console.log(``);
   console.log(
-    `* Published @rocicorp/zero@${dockerCanaryVersion} to npm with tag '@canary'.`,
+    `* Published @rocicorp/zero@${nextCanaryVersion} to npm with tag '@canary'.`,
   );
   console.log(
-    `* Created Docker image rocicorp/zero:${dockerCanaryVersion} and set tag @canary.`,
+    `* Created Docker image rocicorp/zero:${nextCanaryVersion} and set tag @canary.`,
   );
   console.log(`* Pushed Git tag ${tagName} to origin and merged with main.`);
   console.log(``);
