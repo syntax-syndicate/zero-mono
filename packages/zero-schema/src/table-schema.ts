@@ -40,7 +40,7 @@ export type TableSchema = {
   readonly primaryKey: PrimaryKey;
 };
 
-export function asDbNames<
+export function asSourceNames<
   T extends {columns: Record<string, SchemaValue>; primaryKey: PrimaryKey},
 >(orig: T): T {
   return {

@@ -3,7 +3,7 @@ import {assert, unreachable} from '../../../shared/src/asserts.ts';
 import type {AST} from '../../../zero-protocol/src/ast.ts';
 import type {Row} from '../../../zero-protocol/src/data.ts';
 import {
-  asDbNames,
+  asSourceNames,
   type TableSchema,
 } from '../../../zero-schema/src/table-schema.ts';
 import {MemorySource} from '../../../zql/src/ivm/memory-source.ts';
@@ -46,7 +46,7 @@ export class ZeroContext implements QueryDelegate {
     batchViewUpdates: (applyViewUpdates: () => void) => void,
   ) {
     this.#tables = Object.fromEntries(
-      Object.values(tables).map(t => [t.dbName, asDbNames(t)]),
+      Object.values(tables).map(t => [t.sourceName, asSourceNames(t)]),
     );
 
     this.#addQuery = addQuery;

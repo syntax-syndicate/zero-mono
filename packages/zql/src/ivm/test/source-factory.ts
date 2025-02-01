@@ -2,7 +2,7 @@ import type {LogContext} from '@rocicorp/logger';
 import type {LogConfig} from '../../../../otel/src/log-options.ts';
 import type {PrimaryKey} from '../../../../zero-protocol/src/primary-key.ts';
 import {
-  asDbNames,
+  asSourceNames,
   type SchemaValue,
 } from '../../../../zero-schema/src/table-schema.ts';
 import {MemorySource} from '../memory-source.ts';
@@ -27,7 +27,10 @@ export const createSource: SourceFactory = (
   const {sourceFactory} = globalThis as {
     sourceFactory?: SourceFactory;
   };
-  const {columns, primaryKey} = asDbNames({columns: cols, primaryKey: pKey});
+  const {columns, primaryKey} = asSourceNames({
+    columns: cols,
+    primaryKey: pKey,
+  });
   if (sourceFactory) {
     return sourceFactory(lc, logConfig, tableName, columns, primaryKey);
   }
