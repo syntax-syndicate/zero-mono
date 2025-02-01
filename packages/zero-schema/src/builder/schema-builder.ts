@@ -60,7 +60,7 @@ export function createSchema<
   const dbNames = new Set<string>();
 
   options.tables.forEach(table => {
-    const {dbName} = table.schema;
+    const {sourceName: dbName} = table.schema;
     if (dbNames.has(dbName)) {
       throw new Error(`Multiple tables reference the name "${dbName}"`);
     }

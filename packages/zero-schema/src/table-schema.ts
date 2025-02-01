@@ -10,7 +10,7 @@ export type SchemaValue<T = unknown> =
   | {
       type: ValueType;
       name: string;
-      dbName: string;
+      sourceName: string;
       optional?: boolean | undefined;
     }
   | EnumSchemaValue<T>
@@ -19,7 +19,7 @@ export type SchemaValue<T = unknown> =
 export type SchemaValueWithCustomType<T> = {
   type: ValueType;
   name: string;
-  dbName: string;
+  sourceName: string;
   optional?: boolean;
   customType: T;
 };
@@ -28,14 +28,14 @@ export type EnumSchemaValue<T> = {
   kind: 'enum';
   type: 'string';
   name: string;
-  dbName: string;
+  sourceName: string;
   optional?: boolean;
   customType: T;
 };
 
 export type TableSchema = {
   readonly name: string;
-  readonly dbName: string;
+  readonly sourceName: string;
   readonly columns: Record<string, SchemaValue>;
   readonly primaryKey: PrimaryKey;
 };
@@ -46,10 +46,10 @@ export function asDbNames<
   return {
     ...orig,
     primaryKey: orig.primaryKey.map(
-      k => orig.columns[k].dbName,
+      k => orig.columns[k].sourceName,
     ) as unknown as PrimaryKey,
     columns: Object.fromEntries(
-      Object.values(orig.columns).map(col => [col.dbName, col]),
+      Object.values(orig.columns).map(col => [col.sourceName, col]),
     ),
   };
 }

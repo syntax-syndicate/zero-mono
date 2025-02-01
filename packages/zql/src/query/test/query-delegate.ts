@@ -82,42 +82,42 @@ function makeSources() {
   };
 
   return {
-    [user.dbName]: createSource(
+    [user.sourceName]: createSource(
       lc,
       logConfig,
       'user',
       user.columns,
       user.primaryKey,
     ),
-    [issue.dbName]: createSource(
+    [issue.sourceName]: createSource(
       lc,
       logConfig,
       'issue',
       issue.columns,
       issue.primaryKey,
     ),
-    [comment.dbName]: createSource(
+    [comment.sourceName]: createSource(
       lc,
       logConfig,
       'comment',
       comment.columns,
       comment.primaryKey,
     ),
-    [revision.dbName]: createSource(
+    [revision.sourceName]: createSource(
       lc,
       logConfig,
       'revision',
       revision.columns,
       revision.primaryKey,
     ),
-    [label.dbName]: createSource(
+    [label.sourceName]: createSource(
       lc,
       logConfig,
       'label',
       label.columns,
       label.primaryKey,
     ),
-    [issueLabel.dbName]: createSource(
+    [issueLabel.sourceName]: createSource(
       lc,
       logConfig,
       'issueLabel',

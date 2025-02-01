@@ -117,20 +117,22 @@ export abstract class AbstractQuery<
     return this.#format;
   }
 
-  _dbTable(table: string): string {
-    return this.#schema.tables[table].dbName;
+  _sourceTable(table: string): string {
+    return this.#schema.tables[table].sourceName;
   }
 
-  _dbField(field: string): string {
-    return this.#schema.tables[this.#tableName].columns[field].dbName;
+  _sourceField(field: string): string {
+    return this.#schema.tables[this.#tableName].columns[field].sourceName;
   }
 
-  _dbKey(fields: CompoundKey): CompoundKey {
-    return this._dbKeyFor(this.#tableName, fields);
+  _sourceKey(fields: CompoundKey): CompoundKey {
+    return this._sourceKeyFor(this.#tableName, fields);
   }
 
-  _dbKeyFor(table: string, fields: CompoundKey): CompoundKey {
-    const key = fields.map(f => this.#schema.tables[table].columns[f].dbName);
+  _sourceKeyFor(table: string, fields: CompoundKey): CompoundKey {
+    const key = fields.map(
+      f => this.#schema.tables[table].columns[f].sourceName,
+    );
     assert(isCompoundKey(key));
     return key;
   }
@@ -138,7 +140,7 @@ export abstract class AbstractQuery<
   _dbRow(row: Partial<PullRow<TTable, TSchema>>) {
     // TODO: Avoid the new object if there are no remappings?
     return Object.fromEntries(
-      Object.entries(row).map(([key, val]) => [this._dbField(key), val]),
+      Object.entries(row).map(([key, val]) => [this._sourceField(key), val]),
     );
   }
 
@@ -202,7 +204,7 @@ export abstract class AbstractQuery<
           this.#schema,
           destSchema,
           {
-            table: this._dbTable(destSchema),
+            table: this._sourceTable(destSchema),
             alias: relationship,
           },
           {
@@ -235,8 +237,8 @@ export abstract class AbstractQuery<
             {
               system: this._system,
               correlation: {
-                parentField: this._dbKey(sourceField),
-                childField: this._dbKeyFor(destSchema, destField),
+                parentField: this._sourceKey(sourceField),
+                childField: this._sourceKeyFor(destSchema, destField),
               },
               subquery: addPrimaryKeysToAst(
                 this.#schema.tables[destSchema],
@@ -265,7 +267,7 @@ export abstract class AbstractQuery<
           this.#schema,
           destSchema,
           {
-            table: this._dbTable(destSchema),
+            table: this._sourceTable(destSchema),
             alias: relationship,
           },
           {
@@ -290,8 +292,8 @@ export abstract class AbstractQuery<
             {
               system: this._system,
               correlation: {
-                parentField: this._dbKey(firstRelation.sourceField),
-                childField: this._dbKeyFor(
+                parentField: this._sourceKey(firstRelation.sourceField),
+                childField: this._sourceKeyFor(
                   junctionSchema,
                   firstRelation.destField,
                 ),
@@ -307,11 +309,11 @@ export abstract class AbstractQuery<
                   {
                     system: this._system,
                     correlation: {
-                      parentField: this._dbKeyFor(
+                      parentField: this._sourceKeyFor(
                         junctionSchema,
                         secondRelation.sourceField,
                       ),
-                      childField: this._dbKeyFor(
+                      childField: this._sourceKeyFor(
                         destSchema,
                         secondRelation.destField,
                       ),
@@ -356,7 +358,7 @@ export abstract class AbstractQuery<
       );
     } else {
       assert(opOrValue !== undefined, 'Invalid condition');
-      cond = cmp(this._dbField(fieldOrExpressionFactory), opOrValue, value);
+      cond = cmp(this._sourceField(fieldOrExpressionFactory), opOrValue, value);
     }
 
     const existingWhere = this.#ast.where;
@@ -423,7 +425,7 @@ export abstract class AbstractQuery<
         ...this.#ast,
         orderBy: [
           ...(this.#ast.orderBy ?? []),
-          [this._dbField(field as string), direction],
+          [this._sourceField(field as string), direction],
         ],
       },
       this.#format,
@@ -447,7 +449,7 @@ export abstract class AbstractQuery<
           this.#schema,
           destSchema,
           {
-            table: this._dbTable(destSchema),
+            table: this._sourceTable(destSchema),
             alias: `${SUBQ_PREFIX}${relationship}`,
           },
           undefined,
@@ -458,8 +460,8 @@ export abstract class AbstractQuery<
         related: {
           system: this._system,
           correlation: {
-            parentField: this._dbKey(sourceField),
-            childField: this._dbKeyFor(destSchema, destField),
+            parentField: this._sourceKey(sourceField),
+            childField: this._sourceKeyFor(destSchema, destField),
           },
           subquery: addPrimaryKeysToAst(
             this.#schema.tables[destSchema],
@@ -484,7 +486,7 @@ export abstract class AbstractQuery<
           this.#schema,
           destSchema,
           {
-            table: this._dbTable(destSchema),
+            table: this._sourceTable(destSchema),
             alias: `${SUBQ_PREFIX}${relationship}`,
           },
           undefined,
@@ -496,11 +498,14 @@ export abstract class AbstractQuery<
         related: {
           system: this._system,
           correlation: {
-            parentField: this._dbKey(firstRelation.sourceField),
-            childField: this._dbKeyFor(junctionSchema, firstRelation.destField),
+            parentField: this._sourceKey(firstRelation.sourceField),
+            childField: this._sourceKeyFor(
+              junctionSchema,
+              firstRelation.destField,
+            ),
           },
           subquery: {
-            table: this._dbTable(junctionSchema),
+            table: this._sourceTable(junctionSchema),
             alias: `${SUBQ_PREFIX}${relationship}`,
             orderBy: addPrimaryKeys(
               this.#schema.tables[junctionSchema],
@@ -511,11 +516,11 @@ export abstract class AbstractQuery<
               related: {
                 system: this._system,
                 correlation: {
-                  parentField: this._dbKeyFor(
+                  parentField: this._sourceKeyFor(
                     junctionSchema,
                     secondRelation.sourceField,
                   ),
-                  childField: this._dbKeyFor(
+                  childField: this._sourceKeyFor(
                     destSchema,
                     secondRelation.destField,
                   ),
@@ -596,7 +601,7 @@ export class QueryImpl<
     delegate: QueryDelegate,
     schema: TSchema,
     tableName: TTable,
-    ast: AST = {table: schema.tables[tableName].dbName ?? tableName},
+    ast: AST = {table: schema.tables[tableName].sourceName ?? tableName},
     format?: Format | undefined,
   ) {
     super(schema, tableName, ast, format);
@@ -701,7 +706,7 @@ function addPrimaryKeys(
     return orderBy;
   }
 
-  const col = (key: string) => schema.columns[key].dbName ?? key;
+  const col = (key: string) => schema.columns[key].sourceName ?? key;
 
   return [
     ...orderBy,

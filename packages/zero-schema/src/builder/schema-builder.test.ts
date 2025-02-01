@@ -480,28 +480,31 @@ test('alternate db names', () => {
       "columns": {
         "id": {
           "customType": null,
-          "dbName": "user_id",
+          "name": "id",
           "optional": false,
+          "sourceName": "user_id",
           "type": "string",
         },
         "name": {
           "customType": null,
-          "dbName": "user_name",
+          "name": "name",
           "optional": false,
+          "sourceName": "user_name",
           "type": "string",
         },
         "recruiterId": {
           "customType": null,
-          "dbName": "user_recruiter_id",
+          "name": "recruiterId",
           "optional": false,
+          "sourceName": "user_recruiter_id",
           "type": "number",
         },
       },
-      "dbName": "users",
       "name": "user",
       "primaryKey": [
         "id",
       ],
+      "sourceName": "users",
     }
   `);
 
@@ -519,28 +522,31 @@ test('alternate db names', () => {
       "columns": {
         "bar": {
           "customType": null,
-          "dbName": "baz",
+          "name": "bar",
           "optional": false,
+          "sourceName": "baz",
           "type": "string",
         },
         "baz": {
           "customType": null,
-          "dbName": "boo",
+          "name": "baz",
           "optional": false,
+          "sourceName": "boo",
           "type": "string",
         },
         "boo": {
           "customType": null,
-          "dbName": "bar",
+          "name": "boo",
           "optional": false,
+          "sourceName": "bar",
           "type": "number",
         },
       },
-      "dbName": "fooz",
       "name": "foo",
       "primaryKey": [
         "bar",
       ],
+      "sourceName": "fooz",
     }
   `);
 });

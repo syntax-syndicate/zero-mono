@@ -7,7 +7,7 @@ import type {SchemaValue, TableSchema} from '../table-schema.ts';
 export function table<TName extends string>(name: TName) {
   return new TableBuilder({
     name,
-    dbName: name,
+    sourceName: name,
     columns: {},
     primaryKey: [] as any as PrimaryKey,
   });
@@ -69,14 +69,14 @@ export class TableBuilder<TShape extends TableSchema> {
   from<DbName extends string>(dbName: DbName) {
     return new TableBuilder<TShape>({
       ...this.#schema,
-      dbName,
+      sourceName: dbName,
     });
   }
 
   columns<
     const TColumns extends Record<
       string,
-      ColumnBuilder<Optional<SchemaValue, 'name' | 'dbName'>>
+      ColumnBuilder<Optional<SchemaValue, 'name' | 'sourceName'>>
     >,
   >(
     columns: TColumns,
@@ -85,11 +85,11 @@ export class TableBuilder<TShape extends TableSchema> {
     columns: {
       [K in keyof TColumns]: TColumns[K]['schema'] & {
         name: string;
-        dbName: string;
+        sourceName: string;
       };
     };
     primaryKey: TShape['primaryKey'];
-    dbName: TShape['dbName'];
+    sourceName: TShape['sourceName'];
   }> {
     const columnSchemas = Object.fromEntries(
       Object.entries(columns).map(([name, v]) => [
@@ -97,7 +97,7 @@ export class TableBuilder<TShape extends TableSchema> {
         {
           ...v.schema,
           name,
-          dbName: v.schema.dbName ?? name,
+          sourceName: v.schema.sourceName ?? name,
         },
       ]),
     ) as {[K in keyof TColumns]: TColumns[K]['schema']};
@@ -135,31 +135,33 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     if (this.#schema.primaryKey.length === 0) {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`);
     }
-    const dbNames = new Set<string>();
-    for (const {dbName} of Object.values(this.#schema.columns)) {
-      if (dbNames.has(dbName)) {
+    const sourceNames = new Set<string>();
+    for (const {sourceName} of Object.values(this.#schema.columns)) {
+      if (sourceNames.has(sourceName)) {
         throw new Error(
           `Table "${
             this.#schema.name
-          }" has multiple columns referencing "${dbName}"`,
+          }" has multiple columns referencing "${sourceName}"`,
         );
       }
-      dbNames.add(dbName);
+      sourceNames.add(sourceName);
     }
     return this.#schema;
   }
 }
 
-class ColumnBuilder<TShape extends Omit<SchemaValue<any>, 'name' | 'dbName'>> {
+class ColumnBuilder<
+  TShape extends Omit<SchemaValue<any>, 'name' | 'sourceName'>,
+> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
   }
 
-  from<DbName extends string>(dbName: DbName) {
-    return new ColumnBuilder<TShape & {dbName: string}>({
+  from<SourceName extends string>(sourceName: SourceName) {
+    return new ColumnBuilder<TShape & {sourceName: string}>({
       ...this.#schema,
-      dbName,
+      sourceName,
     });
   }
 
