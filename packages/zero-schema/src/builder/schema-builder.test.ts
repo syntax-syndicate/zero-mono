@@ -567,5 +567,7 @@ test('schema with conflicting table names', () => {
 
   expect(() =>
     createSchema(1, {tables: [foo, bar]}),
-  ).toThrowErrorMatchingInlineSnapshot(`[Error: Multiple tables reference the name "bar"]`);
+  ).toThrowErrorMatchingInlineSnapshot(
+    `[Error: Multiple tables reference the name "bar"]`,
+  );
 });
