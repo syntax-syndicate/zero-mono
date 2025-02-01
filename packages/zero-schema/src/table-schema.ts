@@ -26,7 +26,7 @@ export type EnumSchemaValue<T> = {
   kind: 'enum';
   type: 'string';
   dbName: string;
-  optional?: boolean | undefined;
+  optional?: boolean;
   customType: T;
 };
 
