@@ -71,7 +71,7 @@ function addData(queryDelegate: QueryDelegate) {
   issueSource.push({
     type: 'add',
     row: {
-      id: '0001',
+      ['issue_id']: '0001',
       title: 'issue 1',
       description: 'description 1',
       closed: false,
@@ -81,7 +81,7 @@ function addData(queryDelegate: QueryDelegate) {
   issueSource.push({
     type: 'add',
     row: {
-      id: '0002',
+      ['issue_id']: '0002',
       title: 'issue 2',
       description: 'description 2',
       closed: false,
@@ -91,7 +91,7 @@ function addData(queryDelegate: QueryDelegate) {
   issueSource.push({
     type: 'add',
     row: {
-      id: '0003',
+      ['issue_id']: '0003',
       title: 'issue 3',
       description: 'description 3',
       closed: false,
@@ -182,7 +182,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -193,7 +193,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -204,7 +204,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
       },
     });
     queryDelegate.commit();
@@ -217,7 +217,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -235,7 +235,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -250,7 +250,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -268,7 +268,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -279,7 +279,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0002',
+        ['issue_id']: '0002',
         title: 'title2',
         description: 'description2',
         closed: false,
@@ -290,14 +290,14 @@ describe('bare select', () => {
 
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
         ownerId: '0001',
       },
       {
-        id: '0002',
+        ['issue_id']: '0002',
         title: 'title2',
         description: 'description2',
         closed: false,
@@ -321,7 +321,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -332,7 +332,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -345,7 +345,7 @@ describe('bare select', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
       },
     });
     queryDelegate.commit();
@@ -353,7 +353,7 @@ describe('bare select', () => {
     // rows did not change
     expect(rows).toEqual([
       {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'title',
         description: 'description',
         closed: false,
@@ -402,7 +402,7 @@ describe('joins and filters', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'issue 1',
         description: 'description 1',
         closed: false,
@@ -418,7 +418,7 @@ describe('joins and filters', () => {
     queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'issue 1',
         description: 'description 1',
         closed: true,
@@ -530,7 +530,7 @@ describe('joins and filters', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0001',
+        ['issue_id']: '0001',
         title: 'issue 1',
         description: 'description 1',
         closed: false,
@@ -540,7 +540,7 @@ describe('joins and filters', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0002',
+        ['issue_id']: '0002',
         title: 'issue 2',
         description: 'description 2',
         closed: false,
@@ -550,7 +550,7 @@ describe('joins and filters', () => {
     queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
-        id: '0003',
+        ['issue_id']: '0003',
         title: 'issue 3',
         description: 'description 3',
         closed: false,
@@ -923,7 +923,7 @@ test('null compare', () => {
     {
       closed: false,
       description: 'description 3',
-      id: '0003',
+      ['issue_id']: '0003',
       ownerId: null,
       title: 'issue 3',
     },
@@ -937,14 +937,14 @@ test('null compare', () => {
     {
       closed: false,
       description: 'description 1',
-      id: '0001',
+      ['issue_id']: '0001',
       ownerId: '0001',
       title: 'issue 1',
     },
     {
       closed: false,
       description: 'description 2',
-      id: '0002',
+      ['issue_id']: '0002',
       ownerId: '0002',
       title: 'issue 2',
     },
@@ -969,21 +969,21 @@ test('literal filter', () => {
     {
       closed: false,
       description: 'description 1',
-      id: '0001',
+      ['issue_id']: '0001',
       ownerId: '0001',
       title: 'issue 1',
     },
     {
       closed: false,
       description: 'description 2',
-      id: '0002',
+      ['issue_id']: '0002',
       ownerId: '0002',
       title: 'issue 2',
     },
     {
       closed: false,
       description: 'description 3',
-      id: '0003',
+      ['issue_id']: '0003',
       ownerId: null,
       title: 'issue 3',
     },
@@ -1129,7 +1129,7 @@ test('where exists', () => {
   issueSource.push({
     type: 'add',
     row: {
-      id: '0001',
+      ['issue_id']: '0001',
       title: 'issue 1',
       description: 'description 1',
       closed: false,
@@ -1139,7 +1139,7 @@ test('where exists', () => {
   issueSource.push({
     type: 'add',
     row: {
-      id: '0002',
+      ['issue_id']: '0002',
       title: 'issue 2',
       description: 'description 2',
       closed: true,
@@ -1212,7 +1212,7 @@ test('where exists before where, see https://bugs.rocicorp.dev/issue/3417', () =
   issueSource.push({
     type: 'add',
     row: {
-      id: '0001',
+      ['issue_id']: '0001',
       title: 'issue 1',
       description: 'description 1',
       closed: false,

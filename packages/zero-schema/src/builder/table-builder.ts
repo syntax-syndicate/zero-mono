@@ -141,7 +141,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
   }
 }
 
-class ColumnBuilder<TShape extends Optional<SchemaValue<any>, 'dbName'>> {
+class ColumnBuilder<TShape extends Omit<SchemaValue<any>, 'dbName'>> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
@@ -154,7 +154,7 @@ class ColumnBuilder<TShape extends Optional<SchemaValue<any>, 'dbName'>> {
     });
   }
 
-  optional(): ColumnBuilder<TShape & {optional: true}> {
+  optional(): ColumnBuilder<Omit<TShape, 'optional'> & {optional: true}> {
     return new ColumnBuilder({
       ...this.#schema,
       optional: true,

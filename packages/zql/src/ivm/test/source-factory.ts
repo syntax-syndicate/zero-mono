@@ -1,9 +1,12 @@
+import type {LogContext} from '@rocicorp/logger';
+import type {LogConfig} from '../../../../otel/src/log-options.ts';
 import type {PrimaryKey} from '../../../../zero-protocol/src/primary-key.ts';
-import type {SchemaValue} from '../../../../zero-schema/src/table-schema.ts';
+import {
+  asDbNames,
+  type SchemaValue,
+} from '../../../../zero-schema/src/table-schema.ts';
 import {MemorySource} from '../memory-source.ts';
 import type {Source} from '../source.ts';
-import type {LogConfig} from '../../../../otel/src/log-options.ts';
-import type {LogContext} from '@rocicorp/logger';
 
 export type SourceFactory = (
   lc: LogContext,
@@ -17,13 +20,14 @@ export const createSource: SourceFactory = (
   lc: LogContext,
   logConfig: LogConfig,
   tableName: string,
-  columns: Record<string, SchemaValue>,
-  primaryKey: PrimaryKey,
+  cols: Record<string, SchemaValue>,
+  pKey: PrimaryKey,
 ): Source => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {sourceFactory} = globalThis as {
     sourceFactory?: SourceFactory;
   };
+  const {columns, primaryKey} = asDbNames({columns: cols, primaryKey: pKey});
   if (sourceFactory) {
     return sourceFactory(lc, logConfig, tableName, columns, primaryKey);
   }

@@ -79,7 +79,7 @@ test('getSource', () => {
           "optional": false,
           "type": "string",
         },
-        "userID": {
+        "user_id": {
           "customType": null,
           "dbName": "user_id",
           "optional": false,
@@ -87,7 +87,7 @@ test('getSource', () => {
         },
       },
       "primaryKey": [
-        "userID",
+        "user_id",
         "stateCode",
       ],
       "tableName": "user_states",

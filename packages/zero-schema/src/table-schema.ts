@@ -37,6 +37,20 @@ export type TableSchema = {
   readonly primaryKey: PrimaryKey;
 };
 
+export function asDbNames<
+  T extends {columns: Record<string, SchemaValue>; primaryKey: PrimaryKey},
+>(orig: T): T {
+  return {
+    ...orig,
+    primaryKey: orig.primaryKey.map(
+      k => orig.columns[k].dbName,
+    ) as unknown as PrimaryKey,
+    columns: Object.fromEntries(
+      Object.values(orig.columns).map(col => [col.dbName, col]),
+    ),
+  };
+}
+
 export type RelationshipsSchema = {
   readonly [name: string]: Relationship;
 };
@@ -65,17 +79,18 @@ export type ColumnTypeName<T extends SchemaValue> = T['type'];
  * This allows us to create the correct return type for a
  * query that has a selection.
  */
-export type SchemaValueToTSType<T extends SchemaValue> = T extends {
-  optional: true;
-}
-  ?
-      | (T extends SchemaValueWithCustomType<infer V>
-          ? V
-          : TypeNameToTypeMap[ColumnTypeName<T>])
-      | null
-  : T extends SchemaValueWithCustomType<infer V>
-  ? V
-  : TypeNameToTypeMap[ColumnTypeName<T>];
+export type SchemaValueToTSType<T extends SchemaValue | ValueType> =
+  T extends ValueType
+    ? TypeNameToTypeMap[T]
+    : T extends {optional: true}
+    ?
+        | (T extends SchemaValueWithCustomType<infer V>
+            ? V
+            : TypeNameToTypeMap[ColumnTypeName<T>])
+        | null
+    : T extends SchemaValueWithCustomType<infer V>
+    ? V
+    : TypeNameToTypeMap[ColumnTypeName<T>];
 
 type Connection = {
   readonly sourceField: readonly string[];

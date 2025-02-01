@@ -2,7 +2,10 @@ import type {NoIndexDiff} from '../../../replicache/src/btree/node.ts';
 import {assert, unreachable} from '../../../shared/src/asserts.ts';
 import type {AST} from '../../../zero-protocol/src/ast.ts';
 import type {Row} from '../../../zero-protocol/src/data.ts';
-import type {TableSchema} from '../../../zero-schema/src/table-schema.ts';
+import {
+  asDbNames,
+  type TableSchema,
+} from '../../../zero-schema/src/table-schema.ts';
 import {MemorySource} from '../../../zql/src/ivm/memory-source.ts';
 import {MemoryStorage} from '../../../zql/src/ivm/memory-storage.ts';
 import type {Storage} from '../../../zql/src/ivm/operator.ts';
@@ -42,23 +45,24 @@ export class ZeroContext implements QueryDelegate {
     addQuery: AddQuery,
     batchViewUpdates: (applyViewUpdates: () => void) => void,
   ) {
-    this.#tables = tables;
+    this.#tables = Object.fromEntries(
+      Object.values(tables).map(t => [t.dbName, asDbNames(t)]),
+    );
+
     this.#addQuery = addQuery;
     this.#batchViewUpdates = batchViewUpdates;
   }
 
-  getSource(name: string): Source | undefined {
-    if (this.#sources.has(name)) {
-      return this.#sources.get(name);
+  getSource(dbName: string): Source | undefined {
+    if (this.#sources.has(dbName)) {
+      return this.#sources.get(dbName);
     }
 
-    const schema = Object.values(this.#tables).find(
-      ({dbName}) => dbName === name,
-    );
+    const schema = this.#tables[dbName];
     const source = schema
-      ? new MemorySource(name, schema.columns, schema.primaryKey)
+      ? new MemorySource(dbName, schema.columns, schema.primaryKey)
       : undefined;
-    this.#sources.set(name, source);
+    this.#sources.set(dbName, source);
     return source;
   }
 
