@@ -20,7 +20,7 @@ describe('building the AST', () => {
   test('creates a new query', () => {
     const issueQuery = newQuery(mockDelegate, schema, 'issue');
     expect(ast(issueQuery)).toEqual({
-      table: 'issue',
+      table: 'issues',
     });
   });
 
@@ -29,10 +29,10 @@ describe('building the AST', () => {
     const where = issueQuery.where('id', '=', '1');
     expect(ast(where)).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "left": {
-            "name": "id",
+            "name": "issue_id",
             "type": "column",
           },
           "op": "=",
@@ -48,12 +48,12 @@ describe('building the AST', () => {
     const where2 = where.where('title', '=', 'foo');
     expect(ast(where2)).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
               "left": {
-                "name": "id",
+                "name": "issue_id",
                 "type": "column",
               },
               "op": "=",
@@ -91,12 +91,12 @@ describe('building the AST', () => {
       .where('ownerId', '2');
     expect(ast(where)).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
               "left": {
-                "name": "id",
+                "name": "issue_id",
                 "type": "column",
               },
               "op": "=",
@@ -157,10 +157,10 @@ describe('building the AST', () => {
         "start": {
           "exclusive": true,
           "row": {
-            "id": "1",
+            "issue_id": "1",
           },
         },
-        "table": "issue",
+        "table": "issues",
       }
     `);
     const start2 = issueQuery.start({id: '2', closed: true}, {inclusive: true});
@@ -170,10 +170,10 @@ describe('building the AST', () => {
           "exclusive": false,
           "row": {
             "closed": true,
-            "id": "2",
+            "issue_id": "2",
           },
         },
-        "table": "issue",
+        "table": "issues",
       }
     `);
   });
@@ -206,7 +206,7 @@ describe('building the AST', () => {
             "system": "client",
           },
         ],
-        "table": "issue",
+        "table": "issues",
       }
     `);
   });
@@ -223,7 +223,7 @@ describe('building the AST', () => {
                 "issueId",
               ],
               "parentField": [
-                "id",
+                "issue_id",
               ],
             },
             "subquery": {
@@ -267,7 +267,7 @@ describe('building the AST', () => {
             "system": "client",
           },
         ],
-        "table": "issue",
+        "table": "issues",
       }
     `);
   });
@@ -311,7 +311,7 @@ describe('building the AST', () => {
                     "alias": "issues",
                     "orderBy": [
                       [
-                        "id",
+                        "issue_id",
                         "asc",
                       ],
                     ],
@@ -322,7 +322,7 @@ describe('building the AST', () => {
                             "issueId",
                           ],
                           "parentField": [
-                            "id",
+                            "issue_id",
                           ],
                         },
                         "subquery": {
@@ -366,7 +366,7 @@ describe('building the AST', () => {
                         "system": "client",
                       },
                     ],
-                    "table": "issue",
+                    "table": "issues",
                   },
                   "system": "client",
                 },
@@ -376,7 +376,7 @@ describe('building the AST', () => {
             "system": "client",
           },
         ],
-        "table": "issue",
+        "table": "issues",
       }
     `);
   });
@@ -417,7 +417,7 @@ describe('building the AST', () => {
                 "issueId",
               ],
               "parentField": [
-                "id",
+                "issue_id",
               ],
             },
             "subquery": {
@@ -428,7 +428,7 @@ describe('building the AST', () => {
                   "asc",
                 ],
               ],
-              "table": "comment",
+              "table": "comments",
             },
             "system": "client",
           },
@@ -438,7 +438,7 @@ describe('building the AST', () => {
                 "issueId",
               ],
               "parentField": [
-                "id",
+                "issue_id",
               ],
             },
             "subquery": {
@@ -482,7 +482,7 @@ describe('building the AST', () => {
             "system": "client",
           },
         ],
-        "table": "issue",
+        "table": "issues",
       }
     `);
   });
@@ -493,7 +493,7 @@ test('where expressions', () => {
   expect(ast(issueQuery.where('id', '=', '1')).where).toMatchInlineSnapshot(`
     {
       "left": {
-        "name": "id",
+        "name": "issue_id",
         "type": "column",
       },
       "op": "=",
@@ -506,36 +506,36 @@ test('where expressions', () => {
   `);
   expect(ast(issueQuery.where('id', '=', '1').where('closed', true)).where)
     .toMatchInlineSnapshot(`
-    {
-      "conditions": [
-        {
-          "left": {
-            "name": "id",
-            "type": "column",
+      {
+        "conditions": [
+          {
+            "left": {
+              "name": "issue_id",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": "1",
+            },
+            "type": "simple",
           },
-          "op": "=",
-          "right": {
-            "type": "literal",
-            "value": "1",
+          {
+            "left": {
+              "name": "closed",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": true,
+            },
+            "type": "simple",
           },
-          "type": "simple",
-        },
-        {
-          "left": {
-            "name": "closed",
-            "type": "column",
-          },
-          "op": "=",
-          "right": {
-            "type": "literal",
-            "value": true,
-          },
-          "type": "simple",
-        },
-      ],
-      "type": "and",
-    }
-  `);
+        ],
+        "type": "and",
+      }
+    `);
   expect(
     ast(
       issueQuery.where(({cmp, or}) =>
@@ -753,7 +753,7 @@ test('where to dnf', () => {
       "conditions": [
         {
           "left": {
-            "name": "id",
+            "name": "issue_id",
             "type": "column",
           },
           "op": "=",
@@ -784,7 +784,7 @@ test('where to dnf', () => {
   expect(ast(dnf).where).toMatchInlineSnapshot(`
     {
       "left": {
-        "name": "id",
+        "name": "issue_id",
         "type": "column",
       },
       "op": "=",
@@ -943,7 +943,7 @@ describe('expression builder', () => {
     const expr = issueQuery.where(({cmp}) => cmp('id', '=', '1'));
     expect(ast(expr)).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "left": {
             "name": "id",
@@ -964,7 +964,7 @@ describe('expression builder', () => {
     const expr2 = issueQuery.where(f);
     expect(ast(expr2)).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "left": {
             "name": "id",
@@ -992,7 +992,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1049,7 +1049,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1096,22 +1096,22 @@ describe('expression builder', () => {
 
     expect(ast(issueQuery.where(({cmp, not}) => not(cmp('id', '=', '1')))))
       .toMatchInlineSnapshot(`
-      {
-        "table": "issue",
-        "where": {
-          "left": {
-            "name": "id",
-            "type": "column",
+        {
+          "table": "issues",
+          "where": {
+            "left": {
+              "name": "id",
+              "type": "column",
+            },
+            "op": "!=",
+            "right": {
+              "type": "literal",
+              "value": "1",
+            },
+            "type": "simple",
           },
-          "op": "!=",
-          "right": {
-            "type": "literal",
-            "value": "1",
-          },
-          "type": "simple",
-        },
-      }
-    `);
+        }
+      `);
 
     expect(
       ast(
@@ -1125,7 +1125,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1195,7 +1195,7 @@ describe('expression builder', () => {
 
   test('empty and', () => {
     expect(ast(issueQuery.where(({and}) => and()))).toEqual({
-      table: 'issue',
+      table: 'issues',
       where: {
         type: 'and',
         conditions: [],
@@ -1205,7 +1205,7 @@ describe('expression builder', () => {
 
   test('empty or', () => {
     expect(ast(issueQuery.where(({or}) => or()))).toEqual({
-      table: 'issue',
+      table: 'issues',
       where: {
         type: 'or',
         conditions: [],
@@ -1222,7 +1222,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1259,43 +1259,43 @@ describe('expression builder', () => {
   test('single and turns into simple', () => {
     expect(ast(issueQuery.where(({and, cmp}) => and(cmp('id', '=', '1')))))
       .toMatchInlineSnapshot(`
-      {
-        "table": "issue",
-        "where": {
-          "left": {
-            "name": "id",
-            "type": "column",
+        {
+          "table": "issues",
+          "where": {
+            "left": {
+              "name": "id",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": "1",
+            },
+            "type": "simple",
           },
-          "op": "=",
-          "right": {
-            "type": "literal",
-            "value": "1",
-          },
-          "type": "simple",
-        },
-      }
-    `);
+        }
+      `);
   });
 
   test('single or turns into simple', () => {
     expect(ast(issueQuery.where(({cmp, or}) => or(cmp('id', '=', '1')))))
       .toMatchInlineSnapshot(`
-      {
-        "table": "issue",
-        "where": {
-          "left": {
-            "name": "id",
-            "type": "column",
+        {
+          "table": "issues",
+          "where": {
+            "left": {
+              "name": "id",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": "1",
+            },
+            "type": "simple",
           },
-          "op": "=",
-          "right": {
-            "type": "literal",
-            "value": "1",
-          },
-          "type": "simple",
-        },
-      }
-    `);
+        }
+      `);
   });
 
   test('undefined terms in or', () => {
@@ -1307,7 +1307,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1354,7 +1354,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [],
           "type": "or",
@@ -1377,7 +1377,7 @@ describe('expression builder', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1420,7 +1420,7 @@ describe('exists', () => {
     expect(ast(issueQuery.where(({exists}) => exists('owner'))))
       .toMatchInlineSnapshot(`
         {
-          "table": "issue",
+          "table": "issues",
           "where": {
             "op": "EXISTS",
             "related": {
@@ -1452,7 +1452,7 @@ describe('exists', () => {
     // shorthand
     expect(ast(issueQuery.whereExists('owner'))).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "op": "EXISTS",
           "related": {
@@ -1488,7 +1488,7 @@ describe('exists', () => {
     expect(ast(issueQuery.whereExists('owner', q => q.where('id', '1'))))
       .toMatchInlineSnapshot(`
         {
-          "table": "issue",
+          "table": "issues",
           "where": {
             "op": "EXISTS",
             "related": {
@@ -1537,7 +1537,7 @@ describe('exists', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "op": "EXISTS",
           "related": {
@@ -1601,7 +1601,7 @@ describe('exists', () => {
 
     expect(ast(issueQuery.whereExists('labels'))).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "op": "EXISTS",
           "related": {
@@ -1610,7 +1610,7 @@ describe('exists', () => {
                 "issueId",
               ],
               "parentField": [
-                "id",
+                "issue_id",
               ],
             },
             "subquery": {
@@ -1671,7 +1671,7 @@ describe('exists', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1707,7 +1707,7 @@ describe('exists', () => {
                     "issueId",
                   ],
                   "parentField": [
-                    "id",
+                    "issue_id",
                   ],
                 },
                 "subquery": {
@@ -1718,7 +1718,7 @@ describe('exists', () => {
                       "asc",
                     ],
                   ],
-                  "table": "comment",
+                  "table": "comments",
                 },
                 "system": "client",
               },
@@ -1737,7 +1737,7 @@ describe('exists', () => {
     expect(ast(issueQuery.where(({not, exists}) => not(exists('comments')))))
       .toMatchInlineSnapshot(`
         {
-          "table": "issue",
+          "table": "issues",
           "where": {
             "op": "NOT EXISTS",
             "related": {
@@ -1746,7 +1746,7 @@ describe('exists', () => {
                   "issueId",
                 ],
                 "parentField": [
-                  "id",
+                  "issue_id",
                 ],
               },
               "subquery": {
@@ -1757,7 +1757,7 @@ describe('exists', () => {
                     "asc",
                   ],
                 ],
-                "table": "comment",
+                "table": "comments",
               },
               "system": "client",
             },
@@ -1773,7 +1773,7 @@ describe('exists', () => {
     expect(ast(issueQuery.where(({not, exists}) => not(exists('labels')))))
       .toMatchInlineSnapshot(`
         {
-          "table": "issue",
+          "table": "issues",
           "where": {
             "op": "NOT EXISTS",
             "related": {
@@ -1782,7 +1782,7 @@ describe('exists', () => {
                   "issueId",
                 ],
                 "parentField": [
-                  "id",
+                  "issue_id",
                 ],
               },
               "subquery": {
@@ -1843,7 +1843,7 @@ describe('exists', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {
@@ -1879,7 +1879,7 @@ describe('exists', () => {
                     "issueId",
                   ],
                   "parentField": [
-                    "id",
+                    "issue_id",
                   ],
                 },
                 "subquery": {
@@ -1890,7 +1890,7 @@ describe('exists', () => {
                       "asc",
                     ],
                   ],
-                  "table": "comment",
+                  "table": "comments",
                 },
                 "system": "client",
               },
@@ -1904,7 +1904,7 @@ describe('exists', () => {
                     "issueId",
                   ],
                   "parentField": [
-                    "id",
+                    "issue_id",
                   ],
                 },
                 "subquery": {
@@ -1970,7 +1970,7 @@ describe('exists', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
-        "table": "issue",
+        "table": "issues",
         "where": {
           "conditions": [
             {

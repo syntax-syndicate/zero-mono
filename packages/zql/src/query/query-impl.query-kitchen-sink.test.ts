@@ -6,8 +6,8 @@ import {schema} from './test/test-schemas.ts';
 
 function addData(queryDelegate: QueryDelegate) {
   const userSource = must(queryDelegate.getSource('user'));
-  const issueSource = must(queryDelegate.getSource('issue'));
-  const commentSource = must(queryDelegate.getSource('comment'));
+  const issueSource = must(queryDelegate.getSource('issues'));
+  const commentSource = must(queryDelegate.getSource('comments'));
   const revisionSource = must(queryDelegate.getSource('revision'));
   const labelSource = must(queryDelegate.getSource('label'));
   const issueLabelSource = must(queryDelegate.getSource('issueLabel'));
@@ -403,7 +403,7 @@ describe('kitchen sink query', () => {
                     "system": "client",
                   },
                 ],
-                "table": "comment",
+                "table": "comments",
               },
               "system": "client",
             },
@@ -464,7 +464,7 @@ describe('kitchen sink query', () => {
               "title": "Issue 1",
             },
           },
-          "table": "issue",
+          "table": "issues",
           "where": {
             "conditions": [
               {

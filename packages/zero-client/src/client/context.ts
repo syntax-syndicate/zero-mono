@@ -52,7 +52,9 @@ export class ZeroContext implements QueryDelegate {
       return this.#sources.get(name);
     }
 
-    const schema = this.#tables[name];
+    const schema = Object.entries(this.#tables).find(
+      ([table, schema]) => (schema.from ?? table) === name,
+    )?.[1];
     const source = schema
       ? new MemorySource(name, schema.columns, schema.primaryKey)
       : undefined;

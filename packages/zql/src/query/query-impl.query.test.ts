@@ -1,5 +1,7 @@
 import {describe, expect, test} from 'vitest';
+import type {LogConfig} from '../../../otel/src/log-options.ts';
 import {deepClone} from '../../../shared/src/deep-clone.ts';
+import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
 import {must} from '../../../shared/src/must.ts';
 import {relationships} from '../../../zero-schema/src/builder/relationship-builder.ts';
 import {
@@ -12,8 +14,6 @@ import {newQuery, type QueryDelegate, QueryImpl} from './query-impl.ts';
 import type {AdvancedQuery} from './query-internal.ts';
 import {QueryDelegateImpl} from './test/query-delegate.ts';
 import {schema} from './test/test-schemas.ts';
-import {createSilentLogContext} from '../../../shared/src/logging-test-utils.ts';
-import type {LogConfig} from '../../../otel/src/log-options.ts';
 
 /**
  * Some basic manual tests to get us started.
@@ -40,8 +40,8 @@ const logConfig: LogConfig = {
 
 function addData(queryDelegate: QueryDelegate) {
   const userSource = must(queryDelegate.getSource('user'));
-  const issueSource = must(queryDelegate.getSource('issue'));
-  const commentSource = must(queryDelegate.getSource('comment'));
+  const issueSource = must(queryDelegate.getSource('issues'));
+  const commentSource = must(queryDelegate.getSource('comments'));
   const revisionSource = must(queryDelegate.getSource('revision'));
   const labelSource = must(queryDelegate.getSource('label'));
   const issueLabelSource = must(queryDelegate.getSource('issueLabel'));
@@ -179,7 +179,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0001',
@@ -201,7 +201,7 @@ describe('bare select', () => {
       },
     ]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0001',
@@ -214,7 +214,7 @@ describe('bare select', () => {
 
   test('source with initial data', () => {
     const queryDelegate = new QueryDelegateImpl();
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0001',
@@ -247,7 +247,7 @@ describe('bare select', () => {
   test('source with initial data followed by changes', () => {
     const queryDelegate = new QueryDelegateImpl();
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0001',
@@ -276,7 +276,7 @@ describe('bare select', () => {
       },
     ]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0002',
@@ -318,7 +318,7 @@ describe('bare select', () => {
 
     expect(rows).toEqual([]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0001',
@@ -342,7 +342,7 @@ describe('bare select', () => {
 
     m.destroy();
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0001',
@@ -399,7 +399,7 @@ describe('joins and filters', () => {
     expect(doubleFilterRows.map(r => r.id)).toEqual(['0001']);
     expect(doubleFilterWithNoResultsRows).toEqual([]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0001',
@@ -415,7 +415,7 @@ describe('joins and filters', () => {
     expect(doubleFilterRows).toEqual([]);
     expect(doubleFilterWithNoResultsRows).toEqual([]);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'add',
       row: {
         id: '0001',
@@ -527,7 +527,7 @@ describe('joins and filters', () => {
       ]
     `);
 
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0001',
@@ -537,7 +537,7 @@ describe('joins and filters', () => {
         ownerId: '0001',
       },
     });
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0002',
@@ -547,7 +547,7 @@ describe('joins and filters', () => {
         ownerId: '0002',
       },
     });
-    queryDelegate.getSource('issue').push({
+    queryDelegate.getSource('issues').push({
       type: 'remove',
       row: {
         id: '0003',
@@ -1123,7 +1123,7 @@ test('join with compound keys', () => {
 
 test('where exists', () => {
   const queryDelegate = new QueryDelegateImpl();
-  const issueSource = must(queryDelegate.getSource('issue'));
+  const issueSource = must(queryDelegate.getSource('issues'));
   const labelSource = must(queryDelegate.getSource('label'));
   const issueLabelSource = must(queryDelegate.getSource('issueLabel'));
   issueSource.push({
@@ -1201,7 +1201,7 @@ test('where exists', () => {
 
 test('where exists before where, see https://bugs.rocicorp.dev/issue/3417', () => {
   const queryDelegate = new QueryDelegateImpl();
-  const issueSource = must(queryDelegate.getSource('issue'));
+  const issueSource = must(queryDelegate.getSource('issues'));
 
   const materialized = newQuery(queryDelegate, schema, 'issue')
     .whereExists('labels')

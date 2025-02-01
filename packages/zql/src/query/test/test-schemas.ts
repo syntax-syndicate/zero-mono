@@ -9,8 +9,9 @@ import {
 } from '../../../../zero-schema/src/builder/table-builder.ts';
 
 const issue = table('issue')
+  .from('issues')
   .columns({
-    id: string(),
+    id: string().from('issue_id'),
     title: string(),
     description: string(),
     closed: boolean(),
@@ -31,6 +32,7 @@ const user = table('user')
   .primaryKey('id');
 
 const comment = table('comment')
+  .from('comments')
   .columns({
     id: string(),
     authorId: string(),

@@ -23,8 +23,9 @@ test('getSource', () => {
         })
         .primaryKey('id'),
       table('userStates')
+        .from('user_states')
         .columns({
-          userID: string(),
+          userID: string().from('user_id'),
           stateCode: string(),
         })
         .primaryKey('userID', 'stateCode'),
@@ -68,7 +69,7 @@ test('getSource', () => {
   expect(context.getSource('nonexistent')).toBeUndefined();
 
   // Should work for other table too.
-  const source2 = context.getSource('userStates');
+  const source2 = context.getSource('user_states');
   expect((source2 as MemorySource).getSchemaInfo()).toMatchInlineSnapshot(`
     {
       "columns": {
@@ -80,7 +81,7 @@ test('getSource', () => {
         },
         "userID": {
           "customType": null,
-          "from": undefined,
+          "from": "user_id",
           "optional": false,
           "type": "string",
         },
@@ -89,7 +90,7 @@ test('getSource', () => {
         "userID",
         "stateCode",
       ],
-      "tableName": "userStates",
+      "tableName": "user_states",
     }
   `);
 });

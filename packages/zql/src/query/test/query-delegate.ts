@@ -1,6 +1,7 @@
 import type {LogConfig} from '../../../../otel/src/log-options.ts';
 import {createSilentLogContext} from '../../../../shared/src/logging-test-utils.ts';
 import type {AST} from '../../../../zero-protocol/src/ast.ts';
+import type {TableSchema} from '../../../../zero-schema/src/table-schema.ts';
 import {MemoryStorage} from '../../ivm/memory-storage.ts';
 import type {Source} from '../../ivm/source.ts';
 import {createSource} from '../../ivm/test/source-factory.ts';
@@ -81,37 +82,45 @@ function makeSources() {
     issueLabel: issueLabelSchema,
   };
 
+  const name = (schema: TableSchema) => schema.from ?? schema.name;
+
   return {
-    user: createSource(lc, logConfig, 'user', user.columns, user.primaryKey),
-    issue: createSource(
+    [name(user)]: createSource(
+      lc,
+      logConfig,
+      'user',
+      user.columns,
+      user.primaryKey,
+    ),
+    [name(issue)]: createSource(
       lc,
       logConfig,
       'issue',
       issue.columns,
       issue.primaryKey,
     ),
-    comment: createSource(
+    [name(comment)]: createSource(
       lc,
       logConfig,
       'comment',
       comment.columns,
       comment.primaryKey,
     ),
-    revision: createSource(
+    [name(revision)]: createSource(
       lc,
       logConfig,
       'revision',
       revision.columns,
       revision.primaryKey,
     ),
-    label: createSource(
+    [name(label)]: createSource(
       lc,
       logConfig,
       'label',
       label.columns,
       label.primaryKey,
     ),
-    issueLabel: createSource(
+    [name(issueLabel)]: createSource(
       lc,
       logConfig,
       'issueLabel',
