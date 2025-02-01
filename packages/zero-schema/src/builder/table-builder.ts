@@ -122,6 +122,18 @@ export class TableBuilderWithColumns<const TShape extends TableSchema> {
     if (this.#schema.primaryKey.length === 0) {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`);
     }
+    const columnNames = new Set<string>();
+    for (const [col, {from}] of Object.entries(this.#schema.columns)) {
+      const name = from ?? col;
+      if (columnNames.has(name)) {
+        throw new Error(
+          `Table "${
+            this.#schema.name
+          }" has multiple columns referencing "${name}"`,
+        );
+      }
+      columnNames.add(name);
+    }
     return this.#schema;
   }
 }

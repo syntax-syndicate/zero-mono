@@ -504,4 +504,68 @@ test('alternate upstream names', () => {
       ],
     }
   `);
+
+  const foo = table('foo')
+    .from('fooz')
+    .columns({
+      bar: string().from('baz'),
+      baz: string().from('boo'),
+      boo: number().from('bar'),
+    })
+    .primaryKey('bar');
+
+  expect(foo.build()).toMatchInlineSnapshot(`
+    {
+      "columns": {
+        "bar": {
+          "customType": null,
+          "from": "baz",
+          "optional": false,
+          "type": "string",
+        },
+        "baz": {
+          "customType": null,
+          "from": "boo",
+          "optional": false,
+          "type": "string",
+        },
+        "boo": {
+          "customType": null,
+          "from": "bar",
+          "optional": false,
+          "type": "number",
+        },
+      },
+      "from": "fooz",
+      "name": "foo",
+      "primaryKey": [
+        "bar",
+      ],
+    }
+  `);
+});
+
+test('conflicting column names', () => {
+  const user = table('user')
+    .from('users')
+    .columns({
+      a: string().from('b'),
+      b: string().from('c'),
+      c: string(),
+      recruiterId: number().from('user_recruiter_id'),
+    })
+    .primaryKey('a');
+
+  expect(() => user.build()).toThrowErrorMatchingInlineSnapshot(
+    `[Error: Table "user" has multiple columns referencing "c"]`,
+  );
+});
+
+test('schema with conflicting table names', () => {
+  const foo = table('foo').from('bar').columns({a: string()}).primaryKey('a');
+  const bar = table('bar').columns({a: string()}).primaryKey('a');
+
+  expect(() =>
+    createSchema(1, {tables: [foo, bar]}),
+  ).toThrowErrorMatchingInlineSnapshot(`[Error: Multiple tables reference the name "bar"]`);
 });
