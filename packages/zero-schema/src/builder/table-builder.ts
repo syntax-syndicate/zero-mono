@@ -60,13 +60,13 @@ export const column = {
   json,
 };
 
-export class TableBuilder<const TShape extends TableSchema> {
+export class TableBuilder<TShape extends TableSchema> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
   }
 
-  from<const DbName extends string>(dbName: DbName) {
+  from<DbName extends string>(dbName: DbName) {
     return new TableBuilder<TShape>({
       ...this.#schema,
       dbName,
@@ -147,7 +147,7 @@ class ColumnBuilder<TShape extends Optional<SchemaValue<any>, 'dbName'>> {
     this.#schema = schema;
   }
 
-  from<const DbName extends string>(dbName: DbName) {
+  from<DbName extends string>(dbName: DbName) {
     return new ColumnBuilder<TShape & {dbName: string}>({
       ...this.#schema,
       dbName,
