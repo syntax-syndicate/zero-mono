@@ -9,7 +9,7 @@ export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
 export type SchemaValue<T = unknown> =
   | {
       type: ValueType;
-      from?: string | undefined;
+      dbName: string;
       optional?: boolean | undefined;
     }
   | EnumSchemaValue<T>
@@ -17,7 +17,7 @@ export type SchemaValue<T = unknown> =
 
 export type SchemaValueWithCustomType<T> = {
   type: ValueType;
-  from?: string | undefined;
+  dbName: string;
   optional?: boolean;
   customType: T;
 };
@@ -25,14 +25,14 @@ export type SchemaValueWithCustomType<T> = {
 export type EnumSchemaValue<T> = {
   kind: 'enum';
   type: 'string';
-  from?: string | undefined;
+  dbName: string;
   optional?: boolean | undefined;
   customType: T;
 };
 
 export type TableSchema = {
   readonly name: string;
-  readonly from?: string | undefined;
+  readonly dbName: string;
   readonly columns: Record<string, SchemaValue>;
   readonly primaryKey: PrimaryKey;
 };

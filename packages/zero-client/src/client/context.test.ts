@@ -45,13 +45,13 @@ test('getSource', () => {
       "columns": {
         "id": {
           "customType": null,
-          "from": undefined,
+          "dbName": "id",
           "optional": false,
           "type": "string",
         },
         "name": {
           "customType": null,
-          "from": undefined,
+          "dbName": "name",
           "optional": false,
           "type": "string",
         },
@@ -75,13 +75,13 @@ test('getSource', () => {
       "columns": {
         "stateCode": {
           "customType": null,
-          "from": undefined,
+          "dbName": "stateCode",
           "optional": false,
           "type": "string",
         },
         "userID": {
           "customType": null,
-          "from": "user_id",
+          "dbName": "user_id",
           "optional": false,
           "type": "string",
         },

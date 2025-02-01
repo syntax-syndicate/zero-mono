@@ -15,11 +15,11 @@ test('Key name does not matter', () => {
         type: 'string';
         optional: false;
         customType: string;
-        from: undefined;
+        dbName: string;
       };
     };
     primaryKey: ['id'];
-    from: undefined;
+    dbName: 'bar';
   }>({} as never);
   // @ts-expect-error - no foo table
   schema.tables.foo;

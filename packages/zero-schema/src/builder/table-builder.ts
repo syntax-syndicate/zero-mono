@@ -1,3 +1,4 @@
+import type {Optional} from 'utility-types';
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
 import type {SchemaValue, TableSchema} from '../table-schema.ts';
@@ -6,7 +7,7 @@ import type {SchemaValue, TableSchema} from '../table-schema.ts';
 export function table<TName extends string>(name: TName) {
   return new TableBuilder({
     name,
-    from: undefined,
+    dbName: name,
     columns: {},
     primaryKey: [] as any as PrimaryKey,
   });
@@ -15,7 +16,6 @@ export function table<TName extends string>(name: TName) {
 export function string<T extends string = string>() {
   return new ColumnBuilder({
     type: 'string',
-    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -24,7 +24,6 @@ export function string<T extends string = string>() {
 export function number<T extends number = number>() {
   return new ColumnBuilder({
     type: 'number',
-    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -33,7 +32,6 @@ export function number<T extends number = number>() {
 export function boolean<T extends boolean = boolean>() {
   return new ColumnBuilder({
     type: 'boolean',
-    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -42,7 +40,6 @@ export function boolean<T extends boolean = boolean>() {
 export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
   return new ColumnBuilder({
     type: 'json',
-    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -51,7 +48,6 @@ export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
 export function enumeration<T extends string>() {
   return new ColumnBuilder({
     type: 'string',
-    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -70,23 +66,31 @@ export class TableBuilder<const TShape extends TableSchema> {
     this.#schema = schema;
   }
 
-  from<const FromName extends string>(from: FromName) {
+  from<const DbName extends string>(dbName: DbName) {
     return new TableBuilder<TShape>({
       ...this.#schema,
-      from,
+      dbName,
     });
   }
 
-  columns<const TColumns extends Record<string, ColumnBuilder<SchemaValue>>>(
+  columns<
+    const TColumns extends Record<
+      string,
+      ColumnBuilder<Optional<SchemaValue, 'dbName'>>
+    >,
+  >(
     columns: TColumns,
   ): TableBuilderWithColumns<{
     name: TShape['name'];
-    columns: {[K in keyof TColumns]: TColumns[K]['schema']};
+    columns: {[K in keyof TColumns]: TColumns[K]['schema'] & {dbName: string}};
     primaryKey: TShape['primaryKey'];
-    from: TShape['from'];
+    dbName: TShape['dbName'];
   }> {
     const columnSchemas = Object.fromEntries(
-      Object.entries(columns).map(([k, v]) => [k, v.schema]),
+      Object.entries(columns).map(([k, v]) => [
+        k,
+        v.from(v.schema.dbName ?? k).schema,
+      ]),
     ) as {[K in keyof TColumns]: TColumns[K]['schema']};
     return new TableBuilderWithColumns({
       ...this.#schema,
@@ -122,36 +126,35 @@ export class TableBuilderWithColumns<const TShape extends TableSchema> {
     if (this.#schema.primaryKey.length === 0) {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`);
     }
-    const columnNames = new Set<string>();
-    for (const [col, {from}] of Object.entries(this.#schema.columns)) {
-      const name = from ?? col;
-      if (columnNames.has(name)) {
+    const dbNames = new Set<string>();
+    for (const {dbName} of Object.values(this.#schema.columns)) {
+      if (dbNames.has(dbName)) {
         throw new Error(
           `Table "${
             this.#schema.name
-          }" has multiple columns referencing "${name}"`,
+          }" has multiple columns referencing "${dbName}"`,
         );
       }
-      columnNames.add(name);
+      dbNames.add(dbName);
     }
     return this.#schema;
   }
 }
 
-class ColumnBuilder<const TShape extends SchemaValue<any>> {
+class ColumnBuilder<const TShape extends Optional<SchemaValue<any>, 'dbName'>> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
   }
 
-  from<const FromName extends string>(from: FromName) {
-    return new ColumnBuilder<TShape>({
+  from<const DbName extends string>(dbName: DbName) {
+    return new ColumnBuilder<TShape & {dbName: string}>({
       ...this.#schema,
-      from,
+      dbName,
     });
   }
 
-  optional(): ColumnBuilder<Omit<TShape, 'optional'> & {optional: true}> {
+  optional(): ColumnBuilder<TShape & {optional: true}> {
     return new ColumnBuilder({
       ...this.#schema,
       optional: true,

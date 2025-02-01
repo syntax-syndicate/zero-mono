@@ -465,7 +465,7 @@ test('too many relationships', () => {
   expectTypeOf(q2).toEqualTypeOf<123>();
 });
 
-test('alternate upstream names', () => {
+test('alternate db names', () => {
   const user = table('user')
     .from('users')
     .columns({
@@ -480,24 +480,24 @@ test('alternate upstream names', () => {
       "columns": {
         "id": {
           "customType": null,
-          "from": "user_id",
+          "dbName": "user_id",
           "optional": false,
           "type": "string",
         },
         "name": {
           "customType": null,
-          "from": "user_name",
+          "dbName": "user_name",
           "optional": false,
           "type": "string",
         },
         "recruiterId": {
           "customType": null,
-          "from": "user_recruiter_id",
+          "dbName": "user_recruiter_id",
           "optional": false,
           "type": "number",
         },
       },
-      "from": "users",
+      "dbName": "users",
       "name": "user",
       "primaryKey": [
         "id",
@@ -519,24 +519,24 @@ test('alternate upstream names', () => {
       "columns": {
         "bar": {
           "customType": null,
-          "from": "baz",
+          "dbName": "baz",
           "optional": false,
           "type": "string",
         },
         "baz": {
           "customType": null,
-          "from": "boo",
+          "dbName": "boo",
           "optional": false,
           "type": "string",
         },
         "boo": {
           "customType": null,
-          "from": "bar",
+          "dbName": "bar",
           "optional": false,
           "type": "number",
         },
       },
-      "from": "fooz",
+      "dbName": "fooz",
       "name": "foo",
       "primaryKey": [
         "bar",

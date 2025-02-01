@@ -57,14 +57,14 @@ export function createSchema<
 } {
   const retTables: Record<string, TableSchema> = {};
   const retRelationships: Record<string, Record<string, Relationship>> = {};
-  const tableNames = new Set<string>();
+  const dbNames = new Set<string>();
 
   options.tables.forEach(table => {
-    const name = table.schema.from ?? table.schema.name;
-    if (tableNames.has(name)) {
-      throw new Error(`Multiple tables reference the name "${name}"`);
+    const {dbName} = table.schema;
+    if (dbNames.has(dbName)) {
+      throw new Error(`Multiple tables reference the name "${dbName}"`);
     }
-    tableNames.add(name);
+    dbNames.add(dbName);
     if (retTables[table.schema.name]) {
       throw new Error(
         `Table "${table.schema.name}" is defined more than once in the schema`,
