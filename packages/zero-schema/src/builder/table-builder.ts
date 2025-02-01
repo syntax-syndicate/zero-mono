@@ -76,20 +76,29 @@ export class TableBuilder<TShape extends TableSchema> {
   columns<
     const TColumns extends Record<
       string,
-      ColumnBuilder<Optional<SchemaValue, 'dbName'>>
+      ColumnBuilder<Optional<SchemaValue, 'name' | 'dbName'>>
     >,
   >(
     columns: TColumns,
   ): TableBuilderWithColumns<{
     name: TShape['name'];
-    columns: {[K in keyof TColumns]: TColumns[K]['schema'] & {dbName: string}};
+    columns: {
+      [K in keyof TColumns]: TColumns[K]['schema'] & {
+        name: string;
+        dbName: string;
+      };
+    };
     primaryKey: TShape['primaryKey'];
     dbName: TShape['dbName'];
   }> {
     const columnSchemas = Object.fromEntries(
-      Object.entries(columns).map(([k, v]) => [
-        k,
-        v.from(v.schema.dbName ?? k).schema,
+      Object.entries(columns).map(([name, v]) => [
+        name,
+        {
+          ...v.schema,
+          name,
+          dbName: v.schema.dbName ?? name,
+        },
       ]),
     ) as {[K in keyof TColumns]: TColumns[K]['schema']};
     return new TableBuilderWithColumns({
@@ -141,7 +150,7 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
   }
 }
 
-class ColumnBuilder<TShape extends Omit<SchemaValue<any>, 'dbName'>> {
+class ColumnBuilder<TShape extends Omit<SchemaValue<any>, 'name' | 'dbName'>> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;

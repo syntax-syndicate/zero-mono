@@ -16,6 +16,7 @@ test('Key name does not matter', () => {
         optional: false;
         customType: string;
         dbName: string;
+        name: string;
       };
     };
     primaryKey: ['id'];

@@ -9,6 +9,7 @@ export type ValueType = 'string' | 'number' | 'boolean' | 'null' | 'json';
 export type SchemaValue<T = unknown> =
   | {
       type: ValueType;
+      name: string;
       dbName: string;
       optional?: boolean | undefined;
     }
@@ -17,6 +18,7 @@ export type SchemaValue<T = unknown> =
 
 export type SchemaValueWithCustomType<T> = {
   type: ValueType;
+  name: string;
   dbName: string;
   optional?: boolean;
   customType: T;
@@ -25,6 +27,7 @@ export type SchemaValueWithCustomType<T> = {
 export type EnumSchemaValue<T> = {
   kind: 'enum';
   type: 'string';
+  name: string;
   dbName: string;
   optional?: boolean;
   customType: T;

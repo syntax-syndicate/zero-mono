@@ -375,8 +375,8 @@ describe('joins and filters', () => {
     );
 
     const singleFilterView = issueQuery.materialize();
-    let singleFilterRows: {id: string}[] = [];
-    let doubleFilterRows: {id: string}[] = [];
+    let singleFilterRows: {['issue_id']: string}[] = [];
+    let doubleFilterRows: {['issue_id']: string}[] = [];
     let doubleFilterWithNoResultsRows: {id: string}[] = [];
     const doubleFilterView = issueQuery
       .where('closed', '=', false)
@@ -386,17 +386,17 @@ describe('joins and filters', () => {
       .materialize();
 
     singleFilterView.addListener(data => {
-      singleFilterRows = deepClone(data) as {id: string}[];
+      singleFilterRows = deepClone(data) as {['issue_id']: string}[];
     });
     doubleFilterView.addListener(data => {
-      doubleFilterRows = deepClone(data) as {id: string}[];
+      doubleFilterRows = deepClone(data) as {['issue_id']: string}[];
     });
     doubleFilterViewWithNoResults.addListener(data => {
       doubleFilterWithNoResultsRows = deepClone(data) as {id: string}[];
     });
 
-    expect(singleFilterRows.map(r => r.id)).toEqual(['0001']);
-    expect(doubleFilterRows.map(r => r.id)).toEqual(['0001']);
+    expect(singleFilterRows.map(r => r['issue_id'])).toEqual(['0001']);
+    expect(doubleFilterRows.map(r => r['issue_id'])).toEqual(['0001']);
     expect(doubleFilterWithNoResultsRows).toEqual([]);
 
     queryDelegate.getSource('issues').push({
@@ -475,7 +475,7 @@ describe('joins and filters', () => {
             },
           ],
           "description": "description 1",
-          "id": "0001",
+          "issue_id": "0001",
           "labels": [
             {
               "id": "0001",
@@ -497,7 +497,7 @@ describe('joins and filters', () => {
           "closed": false,
           "comments": [],
           "description": "description 2",
-          "id": "0002",
+          "issue_id": "0002",
           "labels": [],
           "owner": {
             "id": "0002",
@@ -519,7 +519,7 @@ describe('joins and filters', () => {
           "closed": false,
           "comments": [],
           "description": "description 3",
-          "id": "0003",
+          "issue_id": "0003",
           "labels": [],
           "ownerId": null,
           "title": "issue 3",
@@ -677,7 +677,7 @@ describe('joins and filters', () => {
             },
           ],
           "description": "description 1",
-          "id": "0001",
+          "issue_id": "0001",
           "owner": {
             "id": "0001",
             "metadata": {
@@ -875,14 +875,14 @@ test('complex expression', () => {
       {
         "closed": false,
         "description": "description 1",
-        "id": "0001",
+        "issue_id": "0001",
         "ownerId": "0001",
         "title": "issue 1",
       },
       {
         "closed": false,
         "description": "description 2",
-        "id": "0002",
+        "issue_id": "0002",
         "ownerId": "0002",
         "title": "issue 2",
       },
@@ -903,7 +903,7 @@ test('complex expression', () => {
       {
         "closed": false,
         "description": "description 1",
-        "id": "0001",
+        "issue_id": "0001",
         "ownerId": "0001",
         "title": "issue 1",
       },
@@ -1175,7 +1175,7 @@ test('where exists', () => {
       {
         "closed": true,
         "description": "description 2",
-        "id": "0002",
+        "issue_id": "0002",
         "labels": [
           {
             "id": "0001",
