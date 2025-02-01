@@ -6,7 +6,7 @@ import type {SchemaValue, TableSchema} from '../table-schema.ts';
 export function table<TName extends string>(name: TName) {
   return new TableBuilder({
     name,
-    upstreamName: undefined,
+    from: undefined,
     columns: {},
     primaryKey: [] as any as PrimaryKey,
   });
@@ -15,7 +15,7 @@ export function table<TName extends string>(name: TName) {
 export function string<T extends string = string>() {
   return new ColumnBuilder({
     type: 'string',
-    upstreamName: undefined,
+    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -24,7 +24,7 @@ export function string<T extends string = string>() {
 export function number<T extends number = number>() {
   return new ColumnBuilder({
     type: 'number',
-    upstreamName: undefined,
+    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -33,7 +33,7 @@ export function number<T extends number = number>() {
 export function boolean<T extends boolean = boolean>() {
   return new ColumnBuilder({
     type: 'boolean',
-    upstreamName: undefined,
+    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -42,7 +42,7 @@ export function boolean<T extends boolean = boolean>() {
 export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
   return new ColumnBuilder({
     type: 'json',
-    upstreamName: undefined,
+    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -51,7 +51,7 @@ export function json<T extends ReadonlyJSONValue = ReadonlyJSONValue>() {
 export function enumeration<T extends string>() {
   return new ColumnBuilder({
     type: 'string',
-    upstreamName: undefined,
+    from: undefined,
     optional: false,
     customType: null as unknown as T,
   });
@@ -70,12 +70,10 @@ export class TableBuilder<const TShape extends TableSchema> {
     this.#schema = schema;
   }
 
-  upstreamName<const TUpstreamName extends string>(
-    upstreamName: TUpstreamName,
-  ) {
+  from<const FromName extends string>(from: FromName) {
     return new TableBuilder({
       ...this.#schema,
-      upstreamName,
+      from,
     });
   }
 
@@ -85,7 +83,7 @@ export class TableBuilder<const TShape extends TableSchema> {
     name: TShape['name'];
     columns: {[K in keyof TColumns]: TColumns[K]['schema']};
     primaryKey: TShape['primaryKey'];
-    upstreamName: TShape['upstreamName'];
+    from: TShape['from'];
   }> {
     const columnSchemas = Object.fromEntries(
       Object.entries(columns).map(([k, v]) => [k, v.schema]),
@@ -134,12 +132,10 @@ class ColumnBuilder<const TShape extends SchemaValue<any>> {
     this.#schema = schema;
   }
 
-  upstreamName<const TUpstreamName extends string>(
-    upstreamName: TUpstreamName,
-  ) {
+  from<const FromName extends string>(from: FromName) {
     return new ColumnBuilder({
       ...this.#schema,
-      upstreamName,
+      from,
     });
   }
 

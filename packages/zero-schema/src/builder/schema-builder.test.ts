@@ -467,11 +467,11 @@ test('too many relationships', () => {
 
 test('alternate upstream names', () => {
   const user = table('user')
-    .upstreamName('users')
+    .from('users')
     .columns({
-      id: string().upstreamName('user_id'),
-      name: string().upstreamName('user_name'),
-      recruiterId: number().upstreamName('user_recruiter_id'),
+      id: string().from('user_id'),
+      name: string().from('user_name'),
+      recruiterId: number().from('user_recruiter_id'),
     })
     .primaryKey('id');
 
@@ -480,28 +480,28 @@ test('alternate upstream names', () => {
       "columns": {
         "id": {
           "customType": null,
+          "from": "user_id",
           "optional": false,
           "type": "string",
-          "upstreamName": "user_id",
         },
         "name": {
           "customType": null,
+          "from": "user_name",
           "optional": false,
           "type": "string",
-          "upstreamName": "user_name",
         },
         "recruiterId": {
           "customType": null,
+          "from": "user_recruiter_id",
           "optional": false,
           "type": "number",
-          "upstreamName": "user_recruiter_id",
         },
       },
+      "from": "users",
       "name": "user",
       "primaryKey": [
         "id",
       ],
-      "upstreamName": "users",
     }
   `);
 });

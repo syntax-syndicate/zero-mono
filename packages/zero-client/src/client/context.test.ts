@@ -44,11 +44,13 @@ test('getSource', () => {
       "columns": {
         "id": {
           "customType": null,
+          "from": undefined,
           "optional": false,
           "type": "string",
         },
         "name": {
           "customType": null,
+          "from": undefined,
           "optional": false,
           "type": "string",
         },
@@ -72,11 +74,13 @@ test('getSource', () => {
       "columns": {
         "stateCode": {
           "customType": null,
+          "from": undefined,
           "optional": false,
           "type": "string",
         },
         "userID": {
           "customType": null,
+          "from": undefined,
           "optional": false,
           "type": "string",
         },

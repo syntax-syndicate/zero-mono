@@ -15,11 +15,11 @@ test('Key name does not matter', () => {
         type: 'string';
         optional: false;
         customType: string;
-        upstreamName: undefined;
+        from: undefined;
       };
     };
     primaryKey: ['id'];
-    upstreamName: undefined;
+    from: undefined;
   }>({} as never);
   // @ts-expect-error - no foo table
   schema.tables.foo;
