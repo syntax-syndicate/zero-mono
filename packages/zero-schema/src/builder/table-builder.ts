@@ -71,7 +71,7 @@ export class TableBuilder<const TShape extends TableSchema> {
   }
 
   from<const FromName extends string>(from: FromName) {
-    return new TableBuilder({
+    return new TableBuilder<TShape>({
       ...this.#schema,
       from,
     });
