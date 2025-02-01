@@ -99,14 +99,14 @@ export class TableBuilder<const TShape extends TableSchema> {
   }
 }
 
-export class TableBuilderWithColumns<const TShape extends TableSchema> {
+export class TableBuilderWithColumns<TShape extends TableSchema> {
   readonly #schema: TShape;
 
   constructor(schema: TShape) {
     this.#schema = schema;
   }
 
-  primaryKey<const TPKColNames extends (keyof TShape['columns'])[]>(
+  primaryKey<TPKColNames extends (keyof TShape['columns'])[]>(
     ...pkColumnNames: TPKColNames
   ) {
     return new TableBuilderWithColumns({
@@ -141,7 +141,7 @@ export class TableBuilderWithColumns<const TShape extends TableSchema> {
   }
 }
 
-class ColumnBuilder<const TShape extends Optional<SchemaValue<any>, 'dbName'>> {
+class ColumnBuilder<TShape extends Optional<SchemaValue<any>, 'dbName'>> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
