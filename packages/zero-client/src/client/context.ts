@@ -53,16 +53,16 @@ export class ZeroContext implements QueryDelegate {
     this.#batchViewUpdates = batchViewUpdates;
   }
 
-  getSource(dbName: string): Source | undefined {
-    if (this.#sources.has(dbName)) {
-      return this.#sources.get(dbName);
+  getSource(name: string): Source | undefined {
+    if (this.#sources.has(name)) {
+      return this.#sources.get(name);
     }
 
-    const schema = this.#tables[dbName];
+    const schema = this.#tables[name];
     const source = schema
-      ? new MemorySource(dbName, schema.columns, schema.primaryKey)
+      ? new MemorySource(name, schema.columns, schema.primaryKey)
       : undefined;
-    this.#sources.set(dbName, source);
+    this.#sources.set(name, source);
     return source;
   }
 

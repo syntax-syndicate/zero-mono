@@ -45,14 +45,16 @@ test('getSource', () => {
       "columns": {
         "id": {
           "customType": null,
-          "dbName": "id",
+          "name": "id",
           "optional": false,
+          "sourceName": "id",
           "type": "string",
         },
         "name": {
           "customType": null,
-          "dbName": "name",
+          "name": "name",
           "optional": false,
+          "sourceName": "name",
           "type": "string",
         },
       },
@@ -75,14 +77,16 @@ test('getSource', () => {
       "columns": {
         "stateCode": {
           "customType": null,
-          "dbName": "stateCode",
+          "name": "stateCode",
           "optional": false,
+          "sourceName": "stateCode",
           "type": "string",
         },
         "user_id": {
           "customType": null,
-          "dbName": "user_id",
+          "name": "userID",
           "optional": false,
+          "sourceName": "user_id",
           "type": "string",
         },
       },
