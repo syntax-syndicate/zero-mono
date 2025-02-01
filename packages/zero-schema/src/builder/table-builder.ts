@@ -145,7 +145,7 @@ class ColumnBuilder<const TShape extends SchemaValue<any>> {
   }
 
   from<const FromName extends string>(from: FromName) {
-    return new ColumnBuilder({
+    return new ColumnBuilder<TShape>({
       ...this.#schema,
       from,
     });
