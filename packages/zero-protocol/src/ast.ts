@@ -334,10 +334,11 @@ const normalizeCache = new WeakMap<AST, Required<AST>>();
 export function normalizeAST(ast: AST): Required<AST> {
   let normalized = normalizeCache.get(ast);
   if (!normalized) {
-    normalized = normalizeAndRemapAST(
+    normalized = normalizeAndRemapNames(
       ast,
-      t => t,
-      (_, c) => c,
+      // no name remapping
+      table => table,
+      (_, column) => column,
     );
     normalizeCache.set(ast, normalized);
   }
@@ -349,10 +350,10 @@ export function makeServerAST(
   tableName: (t: string) => string,
   columnName: (t: string, c: string) => string,
 ) {
-  return normalizeAndRemapAST(ast, tableName, columnName);
+  return normalizeAndRemapNames(ast, tableName, columnName);
 }
 
-function normalizeAndRemapAST(
+function normalizeAndRemapNames(
   ast: AST,
   tableName: (t: string) => string,
   columnName: (t: string, c: string) => string,
@@ -382,7 +383,7 @@ function normalizeAndRemapAST(
                   childField: key(r.subquery.table, r.correlation.childField),
                 },
                 hidden: r.hidden,
-                subquery: normalizeAndRemapAST(
+                subquery: normalizeAndRemapNames(
                   r.subquery,
                   tableName,
                   columnName,
@@ -436,7 +437,7 @@ function sortedWhere(
           parentField: key(table, correlation.parentField),
           childField: key(subquery.table, correlation.childField),
         },
-        subquery: normalizeAndRemapAST(subquery, tableName, columnName),
+        subquery: normalizeAndRemapNames(subquery, tableName, columnName),
       },
     };
   }
