@@ -480,21 +480,18 @@ test('alternate db names', () => {
       "columns": {
         "id": {
           "customType": null,
-          "name": "id",
           "optional": false,
           "serverName": "user_id",
           "type": "string",
         },
         "name": {
           "customType": null,
-          "name": "name",
           "optional": false,
           "serverName": "user_name",
           "type": "string",
         },
         "recruiterId": {
           "customType": null,
-          "name": "recruiterId",
           "optional": false,
           "serverName": "user_recruiter_id",
           "type": "number",
@@ -522,21 +519,18 @@ test('alternate db names', () => {
       "columns": {
         "bar": {
           "customType": null,
-          "name": "bar",
           "optional": false,
           "serverName": "baz",
           "type": "string",
         },
         "baz": {
           "customType": null,
-          "name": "baz",
           "optional": false,
           "serverName": "boo",
           "type": "string",
         },
         "boo": {
           "customType": null,
-          "name": "boo",
           "optional": false,
           "serverName": "bar",
           "type": "number",

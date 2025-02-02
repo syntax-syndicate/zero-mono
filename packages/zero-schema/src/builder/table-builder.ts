@@ -76,7 +76,7 @@ export class TableBuilder<TShape extends TableSchema> {
   columns<
     const TColumns extends Record<
       string,
-      ColumnBuilder<Optional<SchemaValue, 'name' | 'serverName'>>
+      ColumnBuilder<Optional<SchemaValue, 'serverName'>>
     >,
   >(
     columns: TColumns,
@@ -96,7 +96,6 @@ export class TableBuilder<TShape extends TableSchema> {
         name,
         {
           ...v.schema,
-          name,
           serverName: v.schema.serverName ?? name,
         },
       ]),

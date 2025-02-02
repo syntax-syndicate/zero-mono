@@ -35,7 +35,6 @@ export const valueTypeSchema: v.Type<ValueType> = v.union(
 
 export const schemaValueSchema = v.readonlyObject({
   type: valueTypeSchema,
-  name: v.string(),
   serverName: v.string(),
   optional: v.boolean().optional(),
 });
