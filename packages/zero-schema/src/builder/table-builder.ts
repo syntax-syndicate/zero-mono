@@ -1,3 +1,4 @@
+import type {Optional} from 'utility-types';
 import type {ReadonlyJSONValue} from '../../../shared/src/json.ts';
 import type {PrimaryKey} from '../../../zero-protocol/src/primary-key.ts';
 import type {SchemaValue, TableSchema} from '../table-schema.ts';
@@ -6,6 +7,7 @@ import type {SchemaValue, TableSchema} from '../table-schema.ts';
 export function table<TName extends string>(name: TName) {
   return new TableBuilder({
     name,
+    serverName: name,
     columns: {},
     primaryKey: [] as any as PrimaryKey,
   });
@@ -64,15 +66,40 @@ export class TableBuilder<TShape extends TableSchema> {
     this.#schema = schema;
   }
 
-  columns<TColumns extends Record<string, ColumnBuilder<SchemaValue>>>(
+  from<ServerName extends string>(serverName: ServerName) {
+    return new TableBuilder<TShape>({
+      ...this.#schema,
+      serverName,
+    });
+  }
+
+  columns<
+    const TColumns extends Record<
+      string,
+      ColumnBuilder<Optional<SchemaValue, 'name' | 'serverName'>>
+    >,
+  >(
     columns: TColumns,
   ): TableBuilderWithColumns<{
     name: TShape['name'];
-    columns: {[K in keyof TColumns]: TColumns[K]['schema']};
+    columns: {
+      [K in keyof TColumns]: TColumns[K]['schema'] & {
+        name: string;
+        serverName: string;
+      };
+    };
     primaryKey: TShape['primaryKey'];
+    serverName: TShape['serverName'];
   }> {
     const columnSchemas = Object.fromEntries(
-      Object.entries(columns).map(([k, v]) => [k, v.schema]),
+      Object.entries(columns).map(([name, v]) => [
+        name,
+        {
+          ...v.schema,
+          name,
+          serverName: v.schema.serverName ?? name,
+        },
+      ]),
     ) as {[K in keyof TColumns]: TColumns[K]['schema']};
     return new TableBuilderWithColumns({
       ...this.#schema,
@@ -108,14 +135,34 @@ export class TableBuilderWithColumns<TShape extends TableSchema> {
     if (this.#schema.primaryKey.length === 0) {
       throw new Error(`Table "${this.#schema.name}" is missing a primary key`);
     }
+    const serverNames = new Set<string>();
+    for (const {serverName} of Object.values(this.#schema.columns)) {
+      if (serverNames.has(serverName)) {
+        throw new Error(
+          `Table "${
+            this.#schema.name
+          }" has multiple columns referencing "${serverName}"`,
+        );
+      }
+      serverNames.add(serverName);
+    }
     return this.#schema;
   }
 }
 
-class ColumnBuilder<TShape extends SchemaValue<any>> {
+class ColumnBuilder<
+  TShape extends Omit<SchemaValue<any>, 'name' | 'serverName'>,
+> {
   readonly #schema: TShape;
   constructor(schema: TShape) {
     this.#schema = schema;
+  }
+
+  from<ServerName extends string>(serverName: ServerName) {
+    return new ColumnBuilder<TShape & {serverName: string}>({
+      ...this.#schema,
+      serverName,
+    });
   }
 
   optional(): ColumnBuilder<Omit<TShape, 'optional'> & {optional: true}> {

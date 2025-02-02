@@ -35,11 +35,14 @@ export const valueTypeSchema: v.Type<ValueType> = v.union(
 
 export const schemaValueSchema = v.readonlyObject({
   type: valueTypeSchema,
+  name: v.string(),
+  serverName: v.string(),
   optional: v.boolean().optional(),
 });
 
 export const tableSchemaSchema: v.Type<TableSchema> = v.readonlyObject({
   name: v.string(),
+  serverName: v.string(),
   columns: v.record(schemaValueSchema),
   primaryKey: primaryKeySchema,
 });

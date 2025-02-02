@@ -10,8 +10,17 @@ test('Key name does not matter', () => {
 
   expectTypeOf(schema.tables.bar).toEqualTypeOf<{
     name: 'bar';
-    columns: {id: {type: 'string'; optional: false; customType: string}};
+    columns: {
+      id: {
+        type: 'string';
+        optional: false;
+        customType: string;
+        name: string;
+        serverName: string;
+      };
+    };
     primaryKey: ['id'];
+    serverName: 'bar';
   }>({} as never);
   // @ts-expect-error - no foo table
   schema.tables.foo;

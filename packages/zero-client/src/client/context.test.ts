@@ -44,12 +44,16 @@ test('getSource', () => {
       "columns": {
         "id": {
           "customType": null,
+          "name": "id",
           "optional": false,
+          "serverName": "id",
           "type": "string",
         },
         "name": {
           "customType": null,
+          "name": "name",
           "optional": false,
+          "serverName": "name",
           "type": "string",
         },
       },
@@ -72,12 +76,16 @@ test('getSource', () => {
       "columns": {
         "stateCode": {
           "customType": null,
+          "name": "stateCode",
           "optional": false,
+          "serverName": "stateCode",
           "type": "string",
         },
         "userID": {
           "customType": null,
+          "name": "userID",
           "optional": false,
+          "serverName": "userID",
           "type": "string",
         },
       },
