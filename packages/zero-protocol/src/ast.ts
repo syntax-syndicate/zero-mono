@@ -118,6 +118,8 @@ export const simpleConditionSchema: v.Type<SimpleCondition> = v.readonlyObject({
   right: v.union(parameterReferenceSchema, literalReferenceSchema),
 });
 
+type ConditionValue = v.Infer<typeof conditionValueSchema>;
+
 export const correlatedSubqueryConditionOperatorSchema: v.Type<CorrelatedSubqueryConditionOperator> =
   v.union(v.literal('EXISTS'), v.literal('NOT EXISTS'));
 
@@ -146,6 +148,11 @@ const disjunctionSchema: v.Type<Disjunction> = v.readonlyObject({
 });
 
 export type CompoundKey = readonly [string, ...string[]];
+
+function mustCompoundKey(field: readonly string[]): CompoundKey {
+  assert(Array.isArray(field) && field.length >= 1);
+  return field as unknown as CompoundKey;
+}
 
 export const compoundKeySchema: v.Type<CompoundKey> = v.readonly(
   v.tuple([v.string()]).concat(v.array(v.string())),
@@ -324,46 +331,102 @@ export type CorrelatedSubqueryConditionOperator = 'EXISTS' | 'NOT EXISTS';
 
 const normalizeCache = new WeakMap<AST, Required<AST>>();
 
-export function normalizeAST(ast: AST): Required<AST> {
+export function normalizeAST(
+  ast: AST,
+  tableName: (t: string) => string = t => t,
+  columnName: (t: string, c: string) => string = (_, c) => c,
+): Required<AST> {
   const cached = normalizeCache.get(ast);
   if (cached) {
     return cached;
   }
+
+  // Name mapping functions (e.g. to server names)
+  const colName = (c: string) => columnName(ast.table, c);
+  const key = (table: string, k: CompoundKey) => {
+    const serverKey = k.map(col => columnName(table, col));
+    return mustCompoundKey(serverKey);
+  };
+
   const where = flattened(ast.where);
   const normalized = {
     schema: ast.schema,
-    table: ast.table,
+    table: tableName(ast.table),
     alias: ast.alias,
-    where: where ? sortedWhere(where) : undefined,
+    where: where
+      ? sortedWhere(where, ast.table, tableName, columnName)
+      : undefined,
     related: ast.related
       ? sortedRelated(
           ast.related.map(
             r =>
               ({
-                correlation: r.correlation,
+                correlation: {
+                  parentField: key(ast.table, r.correlation.parentField),
+                  childField: key(r.subquery.table, r.correlation.childField),
+                },
                 hidden: r.hidden,
-                subquery: normalizeAST(r.subquery),
+                subquery: normalizeAST(r.subquery, tableName, columnName),
                 system: r.system,
               }) satisfies Required<CorrelatedSubquery>,
           ),
         )
       : undefined,
-    start: ast.start,
+    start: ast.start
+      ? {
+          ...ast.start,
+          row: Object.fromEntries(
+            Object.entries(ast.start.row).map(([col, val]) => [
+              colName(col),
+              val,
+            ]),
+          ),
+        }
+      : undefined,
     limit: ast.limit,
-    orderBy: ast.orderBy,
+    orderBy: ast.orderBy?.map(([col, dir]) => [colName(col), dir] as const),
   };
 
   normalizeCache.set(ast, normalized);
   return normalized;
 }
 
-function sortedWhere(where: Condition): Condition {
-  if (where.type === 'simple' || where.type === 'correlatedSubquery') {
-    return where;
+function sortedWhere(
+  where: Condition,
+  table: string,
+  tableName: (t: string) => string,
+  columnName: (t: string, c: string) => string,
+): Condition {
+  // Name mapping functions (e.g. to server names)
+  const condValue = (c: ConditionValue) =>
+    c.type !== 'column' ? c : {...c, name: columnName(table, c.name)};
+  const key = (table: string, k: CompoundKey) => {
+    const serverKey = k.map(col => columnName(table, col));
+    return mustCompoundKey(serverKey);
+  };
+
+  if (where.type === 'simple') {
+    return {...where, left: condValue(where.left)};
+  } else if (where.type === 'correlatedSubquery') {
+    const {correlation, subquery} = where.related;
+    return {
+      ...where,
+      related: {
+        ...where.related,
+        correlation: {
+          parentField: key(table, correlation.parentField),
+          childField: key(subquery.table, correlation.childField),
+        },
+        subquery: normalizeAST(subquery, tableName, columnName),
+      },
+    };
   }
+
   return {
     type: where.type,
-    conditions: where.conditions.map(w => sortedWhere(w)).sort(cmpCondition),
+    conditions: where.conditions
+      .map(w => sortedWhere(w, table, tableName, columnName))
+      .sort(cmpCondition),
   };
 }
 

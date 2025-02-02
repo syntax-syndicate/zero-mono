@@ -236,6 +236,204 @@ test('related subqueries are sorted', () => {
   `);
 });
 
+test('renaming', () => {
+  const ast: AST = {
+    table: 'issue',
+    where: {
+      type: 'and',
+      conditions: [
+        {
+          type: 'simple',
+          left: {type: 'column', name: 'id'},
+          op: '=',
+          right: {type: 'literal', value: 'value'},
+        },
+        {
+          type: 'simple',
+          left: {type: 'column', name: 'ownerId'},
+          op: '=',
+          right: {type: 'literal', value: 'value'},
+        },
+        {
+          type: 'correlatedSubquery',
+          related: {
+            correlation: {parentField: ['commentId'], childField: ['id']},
+            system: 'client',
+            subquery: {
+              table: 'comment',
+              alias: 'alias2',
+            },
+          },
+          op: 'EXISTS',
+        },
+      ],
+    },
+    related: [
+      {
+        correlation: {parentField: ['commentId'], childField: ['id']},
+        system: 'client',
+        subquery: {
+          table: 'comment',
+          alias: 'alias2',
+        },
+      },
+      {
+        correlation: {parentField: ['ownerId'], childField: ['id']},
+        system: 'client',
+        subquery: {
+          table: 'user',
+          alias: 'alias1',
+        },
+      },
+    ],
+    start: {row: {id: '123'}, exclusive: true},
+    orderBy: [
+      ['modified', 'desc'],
+      ['id', 'asc'],
+    ],
+  };
+
+  const tableName = (table: string) => `${table}s`;
+  const columnName = (table: string, column: string) => {
+    if (column === 'id') {
+      return `${table}_id`;
+    }
+    if (table === 'issue') {
+      switch (column) {
+        case 'ownerId':
+          return 'owner_id';
+        case 'commentId':
+          return 'comment_id';
+      }
+    }
+    return column;
+  };
+  expect(normalizeAST(ast, tableName, columnName)).toMatchInlineSnapshot(`
+    {
+      "alias": undefined,
+      "limit": undefined,
+      "orderBy": [
+        [
+          "modified",
+          "desc",
+        ],
+        [
+          "issue_id",
+          "asc",
+        ],
+      ],
+      "related": [
+        {
+          "correlation": {
+            "childField": [
+              "user_id",
+            ],
+            "parentField": [
+              "owner_id",
+            ],
+          },
+          "hidden": undefined,
+          "subquery": {
+            "alias": "alias1",
+            "limit": undefined,
+            "orderBy": undefined,
+            "related": undefined,
+            "schema": undefined,
+            "start": undefined,
+            "table": "users",
+            "where": undefined,
+          },
+          "system": "client",
+        },
+        {
+          "correlation": {
+            "childField": [
+              "comment_id",
+            ],
+            "parentField": [
+              "comment_id",
+            ],
+          },
+          "hidden": undefined,
+          "subquery": {
+            "alias": "alias2",
+            "limit": undefined,
+            "orderBy": undefined,
+            "related": undefined,
+            "schema": undefined,
+            "start": undefined,
+            "table": "comments",
+            "where": undefined,
+          },
+          "system": "client",
+        },
+      ],
+      "schema": undefined,
+      "start": {
+        "exclusive": true,
+        "row": {
+          "issue_id": "123",
+        },
+      },
+      "table": "issues",
+      "where": {
+        "conditions": [
+          {
+            "left": {
+              "name": "issue_id",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": "value",
+            },
+            "type": "simple",
+          },
+          {
+            "left": {
+              "name": "owner_id",
+              "type": "column",
+            },
+            "op": "=",
+            "right": {
+              "type": "literal",
+              "value": "value",
+            },
+            "type": "simple",
+          },
+          {
+            "op": "EXISTS",
+            "related": {
+              "correlation": {
+                "childField": [
+                  "comment_id",
+                ],
+                "parentField": [
+                  "comment_id",
+                ],
+              },
+              "subquery": {
+                "alias": "alias2",
+                "limit": undefined,
+                "orderBy": undefined,
+                "related": undefined,
+                "schema": undefined,
+                "start": undefined,
+                "table": "comments",
+                "where": undefined,
+              },
+              "system": "client",
+            },
+            "type": "correlatedSubquery",
+          },
+        ],
+        "type": "and",
+      },
+    }
+  `);
+});
+
 test('protocol version', () => {
   const schemaJSON = JSON.stringify(astSchema);
   const hash = h64(schemaJSON).toString(36);
