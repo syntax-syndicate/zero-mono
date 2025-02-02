@@ -6,6 +6,7 @@ import {hashOfAST} from '../../../zero-protocol/src/ast-hash.ts';
 import {normalizeAST, type AST} from '../../../zero-protocol/src/ast.ts';
 import type {ChangeDesiredQueriesMessage} from '../../../zero-protocol/src/change-desired-queries.ts';
 import type {QueriesPatchOp} from '../../../zero-protocol/src/queries-patch.ts';
+import type {TableSchema} from '../../../zero-schema/src/table-schema.ts';
 import type {GotCallback} from '../../../zql/src/query/query-impl.ts';
 import {desiredQueriesPrefixForClient, GOT_QUERIES_KEY_PREFIX} from './keys.ts';
 import type {ReadTransaction} from './replicache-types.ts';
@@ -19,6 +20,7 @@ type QueryHash = string;
  */
 export class QueryManager {
   readonly #clientID: ClientID;
+  readonly #tables: Record<string, TableSchema>;
   readonly #send: (change: ChangeDesiredQueriesMessage) => void;
   readonly #queries: Map<
     QueryHash,
@@ -30,11 +32,13 @@ export class QueryManager {
 
   constructor(
     clientID: ClientID,
+    tables: Record<string, TableSchema>,
     send: (change: ChangeDesiredQueriesMessage) => void,
     experimentalWatch: InstanceType<typeof ReplicacheImpl>['experimentalWatch'],
     recentQueriesMaxSize: number,
   ) {
     this.#clientID = clientID;
+    this.#tables = tables;
     this.#recentQueriesMaxSize = recentQueriesMaxSize;
     this.#send = send;
     experimentalWatch(
@@ -124,7 +128,11 @@ export class QueryManager {
   }
 
   add(ast: AST, gotCallback?: GotCallback | undefined): () => void {
-    const normalized = normalizeAST(ast);
+    const normalized = normalizeAST(
+      ast,
+      table => this.#tables[table].serverName,
+      (table, column) => this.#tables[table].columns[column].serverName,
+    );
     const astHash = hashOfAST(normalized);
     let entry = this.#queries.get(astHash);
     this.#recentQueries.delete(astHash);

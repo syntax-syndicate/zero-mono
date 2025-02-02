@@ -308,7 +308,24 @@ test('renaming', () => {
     }
     return column;
   };
-  expect(normalizeAST(ast, tableName, columnName)).toMatchInlineSnapshot(`
+  const normalized = normalizeAST(ast, tableName, columnName);
+
+  const json = JSON.stringify(normalized);
+  expect(json).toMatch(/"issues"/);
+  expect(json).toMatch(/"comments"/);
+  expect(json).toMatch(/"users"/);
+  expect(json).toMatch(/"issue_id"/);
+  expect(json).toMatch(/"comment_id"/);
+  expect(json).toMatch(/"user_id"/);
+  expect(json).toMatch(/"owner_id"/);
+  expect(json).not.toMatch(/"issue"/);
+  expect(json).not.toMatch(/"comment"/);
+  expect(json).not.toMatch(/"user"/);
+  expect(json).not.toMatch(/"id"/);
+  expect(json).not.toMatch(/"ownerId"/);
+  expect(json).not.toMatch(/"commentId"/);
+
+  expect(normalized).toMatchInlineSnapshot(`
     {
       "alias": undefined,
       "limit": undefined,
