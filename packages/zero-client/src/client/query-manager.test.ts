@@ -123,7 +123,7 @@ test('add renamed fields', () => {
       exclusive: false,
     },
   };
-  where:;
+
   queryManager.add(ast);
   expect(send).toBeCalledTimes(1);
   expect(send.mock.calls[0][0]).toMatchInlineSnapshot(`
