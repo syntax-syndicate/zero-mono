@@ -78,7 +78,11 @@ test('completed poke plays on first raf', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {['issue_id']: 'issue1', title: 'foo1'},
+        value: {
+          ['issue_id']: 'issue1',
+          title: 'foo1',
+          description: 'columns not in client schema pass through',
+        },
       },
     ],
   });
@@ -125,7 +129,11 @@ test('completed poke plays on first raf', async () => {
         {
           op: 'put',
           key: 'e/issue/issue1',
-          value: {id: 'issue1', title: 'foo1'},
+          value: {
+            id: 'issue1',
+            title: 'foo1',
+            description: 'columns not in client schema pass through',
+          },
         },
         {
           op: 'put',

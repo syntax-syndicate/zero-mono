@@ -46,7 +46,7 @@ test('add', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
           ast: {
             table: 'issues',
             where: undefined,
@@ -220,7 +220,7 @@ test('add renamed fields', () => {
                 "type": "and",
               },
             },
-            "hash": "2xztj534u7k1s",
+            "hash": "2courpv3kf7et",
             "op": "put",
           },
         ],
@@ -252,7 +252,7 @@ test('remove, recent queries max size 0', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
           ast: {
             table: 'issues',
             where: undefined,
@@ -276,7 +276,7 @@ test('remove, recent queries max size 0', () => {
       desiredQueriesPatch: [
         {
           op: 'del',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
         },
       ],
     },
@@ -324,7 +324,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
           ast: {
             table: 'issues',
             where: undefined,
@@ -346,7 +346,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '23xyk6p9abj0c',
+          hash: '1hydj1t7t5yv4',
           ast: {
             table: 'issues',
             where: undefined,
@@ -365,7 +365,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '2rltuh73615pi',
+          hash: '3c5d3uiyypuxu',
           ast: {
             table: 'users',
             where: undefined,
@@ -384,7 +384,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: 'aaaqpuy7h6qi',
+          hash: '2q7cds8pild5w',
           ast: {
             table: 'users',
             where: undefined,
@@ -411,7 +411,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'del',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
         },
       ],
     },
@@ -425,7 +425,7 @@ test('remove, max recent queries size 2', () => {
       desiredQueriesPatch: [
         {
           op: 'del',
-          hash: '23xyk6p9abj0c',
+          hash: '1hydj1t7t5yv4',
         },
       ],
     },
@@ -470,7 +470,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
           ast: {
             table: 'issues',
             where: undefined,
@@ -489,7 +489,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '23xyk6p9abj0c',
+          hash: '1hydj1t7t5yv4',
           ast: {
             table: 'issues',
             where: undefined,
@@ -508,7 +508,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: '2rltuh73615pi',
+          hash: '3c5d3uiyypuxu',
           ast: {
             table: 'users',
             where: undefined,
@@ -527,7 +527,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'put',
-          hash: 'aaaqpuy7h6qi',
+          hash: '2q7cds8pild5w',
           ast: {
             table: 'users',
             where: undefined,
@@ -559,7 +559,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'del',
-          hash: '23xyk6p9abj0c',
+          hash: '1hydj1t7t5yv4',
         },
       ],
     },
@@ -573,7 +573,7 @@ test('test add/remove/add/remove changes lru order max recent queries size 2', (
       desiredQueriesPatch: [
         {
           op: 'del',
-          hash: '3w07tflzjgrd9',
+          hash: '12hwg3ihkijhm',
         },
       ],
     },
@@ -640,13 +640,13 @@ test('getQueriesPatch', async () => {
     () => () => {},
     maxRecentQueriesSize,
   );
-  // hash: 3w07tflzjgrd9
+  // hash: 12hwg3ihkijhm
   const ast1: AST = {
     table: 'issue',
     orderBy: [['id', 'asc']],
   };
   queryManager.add(ast1);
-  // hash 23xyk6p9abj0c
+  // hash 1hydj1t7t5yv4
   const ast2: AST = {
     table: 'issue',
     orderBy: [['id', 'desc']],
@@ -655,7 +655,7 @@ test('getQueriesPatch', async () => {
 
   const testReadTransaction = new TestTransaction();
   testReadTransaction.scanEntries = [
-    ['d/client1/3w07tflzjgrd9', 'unused'],
+    ['d/client1/12hwg3ihkijhm', 'unused'],
     ['d/client1/shouldBeDeleted', 'unused'],
   ];
 
@@ -669,7 +669,7 @@ test('getQueriesPatch', async () => {
         },
         {
           op: 'put',
-          hash: '23xyk6p9abj0c',
+          hash: '1hydj1t7t5yv4',
           ast: {
             table: 'issues',
             orderBy: [['id', 'desc']],
@@ -720,22 +720,22 @@ test('getQueriesPatch includes recent queries in desired', async () => {
 
   const testReadTransaction = new TestTransaction();
   testReadTransaction.scanEntries = [
-    ['d/client1/3w07tflzjgrd9', 'unused'],
+    ['d/client1/12hwg3ihkijhm', 'unused'],
     ['d/client1/shouldBeDeleted', 'unused'],
   ];
 
   const patch = await queryManager.getQueriesPatch(testReadTransaction);
   expect(patch).toMatchInlineSnapshot(`
     Map {
-      "3w07tflzjgrd9" => {
-        "hash": "3w07tflzjgrd9",
+      "12hwg3ihkijhm" => {
+        "hash": "12hwg3ihkijhm",
         "op": "del",
       },
       "shouldBeDeleted" => {
         "hash": "shouldBeDeleted",
         "op": "del",
       },
-      "2rltuh73615pi" => {
+      "3c5d3uiyypuxu" => {
         "ast": {
           "alias": undefined,
           "limit": undefined,
@@ -751,10 +751,10 @@ test('getQueriesPatch includes recent queries in desired', async () => {
           "table": "users",
           "where": undefined,
         },
-        "hash": "2rltuh73615pi",
+        "hash": "3c5d3uiyypuxu",
         "op": "put",
       },
-      "aaaqpuy7h6qi" => {
+      "2q7cds8pild5w" => {
         "ast": {
           "alias": undefined,
           "limit": undefined,
@@ -770,7 +770,7 @@ test('getQueriesPatch includes recent queries in desired', async () => {
           "table": "users",
           "where": undefined,
         },
-        "hash": "aaaqpuy7h6qi",
+        "hash": "2q7cds8pild5w",
         "op": "put",
       },
     }
@@ -779,7 +779,7 @@ test('getQueriesPatch includes recent queries in desired', async () => {
 });
 
 test('gotCallback, query already got', () => {
-  const queryHash = '3w07tflzjgrd9';
+  const queryHash = '12hwg3ihkijhm';
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
 
@@ -842,7 +842,7 @@ test('gotCallback, query already got', () => {
 });
 
 test('gotCallback, query got after add', () => {
-  const queryHash = '3w07tflzjgrd9';
+  const queryHash = '12hwg3ihkijhm';
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
@@ -900,7 +900,7 @@ test('gotCallback, query got after add', () => {
 });
 
 test('gotCallback, query got after add then removed', () => {
-  const queryHash = '3w07tflzjgrd9';
+  const queryHash = '12hwg3ihkijhm';
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(msg: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
@@ -968,7 +968,7 @@ test('gotCallback, query got after add then removed', () => {
 });
 
 test('gotCallback, query got after subscription removed', () => {
-  const queryHash = '3w07tflzjgrd9';
+  const queryHash = '12hwg3ihkijhm';
   const experimentalWatch = createExperimentalWatchMock();
   const send = vi.fn<(q: ChangeDesiredQueriesMessage) => void>();
   const maxRecentQueriesSize = 0;
@@ -1064,7 +1064,7 @@ describe('queriesPatch with lastPatch', () => {
           table: 'issues',
           ...normalizingFields,
         },
-        hash: '3w07tflzjgrd9',
+        hash: '12hwg3ihkijhm',
         op: 'put',
       },
     ]);
@@ -1093,13 +1093,13 @@ describe('queriesPatch with lastPatch', () => {
       testReadTransaction,
       new Map([
         [
-          '3w07tflzjgrd9',
+          '12hwg3ihkijhm',
           {
             ast: {
               orderBy: [['id', 'asc']],
               table: 'issues',
             },
-            hash: '3w07tflzjgrd9',
+            hash: '12hwg3ihkijhm',
             op: 'put',
           },
         ],
@@ -1113,13 +1113,13 @@ describe('queriesPatch with lastPatch', () => {
       testReadTransaction,
       new Map([
         [
-          '3w07tflzjgrd9',
+          '12hwg3ihkijhm',
           {
             ast: {
               orderBy: [['id', 'asc']],
               table: 'issues',
             },
-            hash: '3w07tflzjgrd9',
+            hash: '12hwg3ihkijhm',
             op: 'put',
           },
         ],
@@ -1127,7 +1127,7 @@ describe('queriesPatch with lastPatch', () => {
     );
     expect([...patch2.values()]).toEqual([
       {
-        hash: '3w07tflzjgrd9',
+        hash: '12hwg3ihkijhm',
         op: 'del',
       },
     ]);

@@ -396,11 +396,8 @@ function toClientRow(row: Row, names: ServerToClientColumns | null) {
   }
   const clientRow: Record<string, Value> = {};
   for (const col in row) {
-    const clientName = names[col];
-    if (!clientName) {
-      throw new Error(`unknown column ${col} in ${JSON.stringify(row)}`);
-    }
-    clientRow[clientName] = row[col];
+    // Note: Columns not defined in the client schema simply pass through.
+    clientRow[names[col] ?? col] = row[col];
   }
   return clientRow;
 }
@@ -409,16 +406,8 @@ function toClientColumns(
   columns: string[] | undefined,
   names: ServerToClientColumns | null,
 ): string[] | undefined {
-  if (!names || !columns) {
-    return columns;
-  }
-  return columns.map(col => {
-    const clientName = names[col];
-    if (!clientName) {
-      throw new Error(`unknown column ${col} in ${JSON.stringify(columns)}`);
-    }
-    return clientName;
-  });
+  // Note: Columns not defined in the client schema simply pass through.
+  return !names || !columns ? columns : columns.map(col => names[col] ?? col);
 }
 
 /**

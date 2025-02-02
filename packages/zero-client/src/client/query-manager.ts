@@ -3,7 +3,11 @@ import type {ClientID} from '../../../replicache/src/sync/ids.ts';
 import {assert} from '../../../shared/src/asserts.ts';
 import {must} from '../../../shared/src/must.ts';
 import {hashOfAST} from '../../../zero-protocol/src/ast-hash.ts';
-import {normalizeAST, type AST} from '../../../zero-protocol/src/ast.ts';
+import {
+  makeServerAST,
+  normalizeAST,
+  type AST,
+} from '../../../zero-protocol/src/ast.ts';
 import type {ChangeDesiredQueriesMessage} from '../../../zero-protocol/src/change-desired-queries.ts';
 import type {QueriesPatchOp} from '../../../zero-protocol/src/queries-patch.ts';
 import type {TableSchema} from '../../../zero-schema/src/table-schema.ts';
@@ -128,26 +132,26 @@ export class QueryManager {
   }
 
   add(ast: AST, gotCallback?: GotCallback | undefined): () => void {
-    const normalized = normalizeAST(
-      ast,
-      table => this.#tables[table].serverName ?? table,
-      (table, col) => this.#tables[table].columns[col].serverName ?? col,
-    );
+    const normalized = normalizeAST(ast);
     const astHash = hashOfAST(normalized);
     let entry = this.#queries.get(astHash);
     this.#recentQueries.delete(astHash);
     if (!entry) {
-      entry = {
+      const serverAST = makeServerAST(
         normalized,
+        table => must(this.#tables[table]).serverName ?? table,
+        (table, col) =>
+          must(this.#tables[table].columns[col]).serverName ?? col,
+      );
+      entry = {
+        normalized: serverAST,
         count: 1,
         gotCallbacks: gotCallback === undefined ? [] : [gotCallback],
       };
       this.#queries.set(astHash, entry);
       this.#send([
         'changeDesiredQueries',
-        {
-          desiredQueriesPatch: [{op: 'put', hash: astHash, ast: normalized}],
-        },
+        {desiredQueriesPatch: [{op: 'put', hash: astHash, ast: serverAST}]},
       ]);
     } else {
       ++entry.count;

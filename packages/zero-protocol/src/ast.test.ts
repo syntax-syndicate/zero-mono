@@ -1,7 +1,7 @@
 import {expect, test} from 'vitest';
 import {h64} from '../../shared/src/hash.ts';
 import type {AST} from './ast.ts';
-import {astSchema, normalizeAST} from './ast.ts';
+import {astSchema, makeServerAST, normalizeAST} from './ast.ts';
 import {PROTOCOL_VERSION} from './protocol-version.ts';
 
 test('fields are placed into correct positions', () => {
@@ -236,7 +236,7 @@ test('related subqueries are sorted', () => {
   `);
 });
 
-test('renaming', () => {
+test('makeServerAST', () => {
   const ast: AST = {
     table: 'issue',
     where: {
@@ -308,7 +308,7 @@ test('renaming', () => {
     }
     return column;
   };
-  const normalized = normalizeAST(ast, tableName, columnName);
+  const normalized = makeServerAST(ast, tableName, columnName);
 
   const json = JSON.stringify(normalized);
   expect(json).toMatch(/"issues"/);

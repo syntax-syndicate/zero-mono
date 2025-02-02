@@ -331,16 +331,32 @@ export type CorrelatedSubqueryConditionOperator = 'EXISTS' | 'NOT EXISTS';
 
 const normalizeCache = new WeakMap<AST, Required<AST>>();
 
-export function normalizeAST(
-  ast: AST,
-  tableName: (t: string) => string = t => t,
-  columnName: (t: string, c: string) => string = (_, c) => c,
-): Required<AST> {
-  const cached = normalizeCache.get(ast);
-  if (cached) {
-    return cached;
+export function normalizeAST(ast: AST): Required<AST> {
+  let normalized = normalizeCache.get(ast);
+  if (!normalized) {
+    normalized = normalizeAndRemapAST(
+      ast,
+      t => t,
+      (_, c) => c,
+    );
+    normalizeCache.set(ast, normalized);
   }
+  return normalized;
+}
 
+export function makeServerAST(
+  ast: AST,
+  tableName: (t: string) => string,
+  columnName: (t: string, c: string) => string,
+) {
+  return normalizeAndRemapAST(ast, tableName, columnName);
+}
+
+function normalizeAndRemapAST(
+  ast: AST,
+  tableName: (t: string) => string,
+  columnName: (t: string, c: string) => string,
+): Required<AST> {
   // Name mapping functions (e.g. to server names)
   const colName = (c: string) => columnName(ast.table, c);
   const key = (table: string, k: CompoundKey) => {
@@ -366,7 +382,11 @@ export function normalizeAST(
                   childField: key(r.subquery.table, r.correlation.childField),
                 },
                 hidden: r.hidden,
-                subquery: normalizeAST(r.subquery, tableName, columnName),
+                subquery: normalizeAndRemapAST(
+                  r.subquery,
+                  tableName,
+                  columnName,
+                ),
                 system: r.system,
               }) satisfies Required<CorrelatedSubquery>,
           ),
@@ -387,7 +407,6 @@ export function normalizeAST(
     orderBy: ast.orderBy?.map(([col, dir]) => [colName(col), dir] as const),
   };
 
-  normalizeCache.set(ast, normalized);
   return normalized;
 }
 
@@ -417,7 +436,7 @@ function sortedWhere(
           parentField: key(table, correlation.parentField),
           childField: key(subquery.table, correlation.childField),
         },
-        subquery: normalizeAST(subquery, tableName, columnName),
+        subquery: normalizeAndRemapAST(subquery, tableName, columnName),
       },
     };
   }
