@@ -15,12 +15,9 @@ test('Key name does not matter', () => {
         type: 'string';
         optional: false;
         customType: string;
-        name: string;
-        serverName: string;
       };
     };
     primaryKey: ['id'];
-    serverName: 'bar';
   }>({} as never);
   // @ts-expect-error - no foo table
   schema.tables.foo;

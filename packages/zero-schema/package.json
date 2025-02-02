@@ -14,7 +14,6 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/"
   },
   "devDependencies": {
-    "utility-types": "^3.11.0",
     "zql": "0.0.0"
   }
 }

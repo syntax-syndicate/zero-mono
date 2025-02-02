@@ -130,8 +130,8 @@ export class QueryManager {
   add(ast: AST, gotCallback?: GotCallback | undefined): () => void {
     const normalized = normalizeAST(
       ast,
-      table => this.#tables[table].serverName,
-      (table, column) => this.#tables[table].columns[column].serverName,
+      table => this.#tables[table].serverName ?? table,
+      (table, col) => this.#tables[table].columns[col].serverName ?? col,
     );
     const astHash = hashOfAST(normalized);
     let entry = this.#queries.get(astHash);

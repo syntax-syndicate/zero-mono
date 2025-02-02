@@ -12,7 +12,7 @@ import {
 import type {AST} from '../../../zero-protocol/src/ast.ts';
 import {createSchema} from '../../../zero-schema/src/builder/schema-builder.ts';
 import {string, table} from '../../../zero-schema/src/builder/table-builder.ts';
-import {PokeHandler, mergePokes} from './zero-poke-handler.ts';
+import {PokeHandler, makeClientNames, mergePokes} from './zero-poke-handler.ts';
 
 let rafStub: MockInstance<(cb: FrameRequestCallback) => number>;
 // The FrameRequestCallback in PokeHandler does not use
@@ -31,15 +31,17 @@ afterEach(() => {
 
 const schema = createSchema(1, {
   tables: [
-    table('issues')
+    table('issue')
+      .from('issues')
       .columns({
-        id: string(),
+        id: string().from('issue_id'),
         title: string(),
       })
       .primaryKey('id'),
-    table('labels')
+    table('label')
+      .from('labels')
       .columns({
-        id: string(),
+        id: string().from('label_id'),
         name: string(),
       })
       .primaryKey('id'),
@@ -76,7 +78,7 @@ test('completed poke plays on first raf', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -89,12 +91,12 @@ test('completed poke plays on first raf', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -122,17 +124,17 @@ test('completed poke plays on first raf', async () => {
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar1'},
         },
       ],
@@ -178,7 +180,7 @@ test('canceled poke is not applied', async () => {
         {
           op: 'put',
           tableName: 'issues',
-          value: {id: 'issue1', title: 'foo1'},
+          value: {['issue_id']: 'issue1', title: 'foo1'},
         },
       ],
     });
@@ -191,12 +193,12 @@ test('canceled poke is not applied', async () => {
         {
           op: 'put',
           tableName: 'issues',
-          value: {id: 'issue1', title: 'foo2'},
+          value: {['issue_id']: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
           tableName: 'issues',
-          value: {id: 'issue2', title: 'bar1'},
+          value: {['issue_id']: 'issue2', title: 'bar1'},
         },
       ],
     });
@@ -237,17 +239,17 @@ test('canceled poke is not applied', async () => {
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar1'},
         },
       ],
@@ -293,7 +295,7 @@ test('multiple pokes received before raf callback are merged', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -306,12 +308,12 @@ test('multiple pokes received before raf callback are merged', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -337,7 +339,7 @@ test('multiple pokes received before raf callback are merged', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue3', title: 'baz1'},
+        value: {['issue_id']: 'issue3', title: 'baz1'},
       },
     ],
   });
@@ -350,7 +352,7 @@ test('multiple pokes received before raf callback are merged', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar2'},
+        value: {['issue_id']: 'issue2', title: 'bar2'},
       },
     ],
   });
@@ -379,27 +381,27 @@ test('multiple pokes received before raf callback are merged', async () => {
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue3',
+          key: 'e/issue/issue3',
           value: {id: 'issue3', title: 'baz1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar2'},
         },
       ],
@@ -445,7 +447,7 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -458,12 +460,12 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -489,7 +491,7 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue3', title: 'baz1'},
+        value: {['issue_id']: 'issue3', title: 'baz1'},
       },
     ],
   });
@@ -502,7 +504,7 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar2'},
+        value: {['issue_id']: 'issue2', title: 'bar2'},
       },
     ],
   });
@@ -529,7 +531,7 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue4', title: 'baz2'},
+        value: {['issue_id']: 'issue4', title: 'baz2'},
       },
     ],
   });
@@ -556,34 +558,34 @@ test('multiple pokes received before raf callback are merged, canceled pokes are
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar1'},
         },
         // Following not included because corresponding poke was canceled
         // {
         //   op: 'put',
-        //   key: 'e/issues/issue3',
+        //   key: 'e/issue/issue3',
         //   value: {id: 'issue3', title: 'baz1'},
         // },
         // {
         //   op: 'put',
-        //   key: 'e/issues/issue2',
+        //   key: 'e/issue/issue2',
         //   value: {id: 'issue2', title: 'bar2'},
         // },
         // non-canceled poke after canceled poke is merged
         {
           op: 'put',
-          key: 'e/issues/issue4',
+          key: 'e/issue/issue4',
           value: {id: 'issue4', title: 'baz2'},
         },
       ],
@@ -629,7 +631,7 @@ test('playback over series of rafs', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -642,12 +644,12 @@ test('playback over series of rafs', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -674,17 +676,17 @@ test('playback over series of rafs', async () => {
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo2'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar1'},
         },
       ],
@@ -708,7 +710,7 @@ test('playback over series of rafs', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue3', title: 'baz1'},
+        value: {['issue_id']: 'issue3', title: 'baz1'},
       },
     ],
   });
@@ -721,7 +723,7 @@ test('playback over series of rafs', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar2'},
+        value: {['issue_id']: 'issue2', title: 'bar2'},
       },
     ],
   });
@@ -749,12 +751,12 @@ test('playback over series of rafs', async () => {
       patch: [
         {
           op: 'put',
-          key: 'e/issues/issue3',
+          key: 'e/issue/issue3',
           value: {id: 'issue3', title: 'baz1'},
         },
         {
           op: 'put',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           value: {id: 'issue2', title: 'bar2'},
         },
       ],
@@ -862,7 +864,7 @@ test('replicachePoke throwing error calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -875,12 +877,12 @@ test('replicachePoke throwing error calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -916,7 +918,7 @@ test('replicachePoke throwing error calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue3', title: 'baz1'},
+        value: {['issue_id']: 'issue3', title: 'baz1'},
       },
     ],
   });
@@ -969,7 +971,7 @@ test('cookie gap during mergePoke calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -982,12 +984,12 @@ test('cookie gap during mergePoke calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -1039,7 +1041,7 @@ test('cookie gap during mergePoke calls onPokeError and clears', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue3', title: 'baz1'},
+        value: {['issue_id']: 'issue3', title: 'baz1'},
       },
     ],
   });
@@ -1091,7 +1093,7 @@ test('onDisconnect clears pending pokes', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -1104,12 +1106,12 @@ test('onDisconnect clears pending pokes', async () => {
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -1160,7 +1162,7 @@ test('handlePoke returns the last mutation id change for this client from pokePa
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo1'},
+        value: {['issue_id']: 'issue1', title: 'foo1'},
       },
     ],
   });
@@ -1174,12 +1176,12 @@ test('handlePoke returns the last mutation id change for this client from pokePa
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -1194,12 +1196,12 @@ test('handlePoke returns the last mutation id change for this client from pokePa
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue1', title: 'foo2'},
+        value: {['issue_id']: 'issue1', title: 'foo2'},
       },
       {
         op: 'put',
         tableName: 'issues',
-        value: {id: 'issue2', title: 'bar1'},
+        value: {['issue_id']: 'issue2', title: 'bar1'},
       },
     ],
   });
@@ -1207,7 +1209,7 @@ test('handlePoke returns the last mutation id change for this client from pokePa
 });
 
 test('mergePokes with empty array returns undefined', () => {
-  const merged = mergePokes([], schema);
+  const merged = mergePokes([], schema, makeClientNames(schema));
   expect(merged).to.be.undefined;
 });
 
@@ -1233,7 +1235,7 @@ test('mergePokes with all optionals defined', () => {
                   hash: 'h1',
                   ast: {
                     table: 'issues',
-                    orderBy: [['id', 'asc']],
+                    orderBy: [['issue_id', 'asc']],
                   },
                 },
               ],
@@ -1244,7 +1246,7 @@ test('mergePokes with all optionals defined', () => {
                 hash: 'h1',
                 ast: {
                   table: 'issues',
-                  orderBy: [['id', 'asc']],
+                  orderBy: [['issue_id', 'asc']],
                 },
               },
             ],
@@ -1253,14 +1255,14 @@ test('mergePokes with all optionals defined', () => {
                 op: 'put',
                 tableName: 'issues',
 
-                value: {id: 'issue1', title: 'foo1'},
+                value: {['issue_id']: 'issue1', title: 'foo1'},
               },
               {
                 op: 'update',
                 tableName: 'issues',
-                id: {id: 'issue2'},
-                merge: {id: 'issue2', title: 'bar1'},
-                constrain: ['id', 'title'],
+                id: {['issue_id']: 'issue2'},
+                merge: {['issue_id']: 'issue2', title: 'bar1'},
+                constrain: ['issue_id', 'title'],
               },
             ],
           },
@@ -1276,7 +1278,7 @@ test('mergePokes with all optionals defined', () => {
                   hash: 'h2',
                   ast: {
                     table: 'labels',
-                    orderBy: [['id', 'asc']],
+                    orderBy: [['label_id', 'asc']],
                   },
                 },
               ],
@@ -1287,7 +1289,7 @@ test('mergePokes with all optionals defined', () => {
                 hash: 'h2',
                 ast: {
                   table: 'labels',
-                  orderBy: [['id', 'asc']],
+                  orderBy: [['label_id', 'asc']],
                 },
               },
             ],
@@ -1295,7 +1297,7 @@ test('mergePokes with all optionals defined', () => {
               {
                 op: 'put',
                 tableName: 'issues',
-                value: {id: 'issue3', title: 'baz1'},
+                value: {['issue_id']: 'issue3', title: 'baz1'},
               },
             ],
           },
@@ -1330,12 +1332,15 @@ test('mergePokes with all optionals defined', () => {
                 hash: 'h1',
               },
             ],
-            rowsPatch: [{op: 'del', tableName: 'issues', id: {id: 'issue3'}}],
+            rowsPatch: [
+              {op: 'del', tableName: 'issues', id: {['issue_id']: 'issue3'}},
+            ],
           },
         ],
       },
     ],
     schema,
+    makeClientNames(schema),
   );
 
   expect(result).toEqual({
@@ -1359,7 +1364,7 @@ test('mergePokes with all optionals defined', () => {
           key: 'd/c1/h1',
           value: {
             table: 'issues',
-            orderBy: [['id', 'asc']],
+            orderBy: [['issue_id', 'asc']],
           },
         },
         {
@@ -1367,17 +1372,17 @@ test('mergePokes with all optionals defined', () => {
           key: 'g/h1',
           value: {
             table: 'issues',
-            orderBy: [['id', 'asc']],
+            orderBy: [['issue_id', 'asc']],
           },
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'update',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           merge: {id: 'issue2', title: 'bar1'},
           constrain: ['id', 'title'],
         },
@@ -1391,7 +1396,7 @@ test('mergePokes with all optionals defined', () => {
           key: 'd/c1/h2',
           value: {
             table: 'labels',
-            orderBy: [['id', 'asc']],
+            orderBy: [['label_id', 'asc']],
           },
         },
         {
@@ -1399,12 +1404,12 @@ test('mergePokes with all optionals defined', () => {
           key: 'g/h2',
           value: {
             table: 'labels',
-            orderBy: [['id', 'asc']],
+            orderBy: [['label_id', 'asc']],
           },
         },
         {
           op: 'put',
-          key: 'e/issues/issue3',
+          key: 'e/issue/issue3',
           value: {id: 'issue3', title: 'baz1'},
         },
         {
@@ -1426,7 +1431,7 @@ test('mergePokes with all optionals defined', () => {
         },
         {
           op: 'del',
-          key: 'e/issues/issue3',
+          key: 'e/issue/issue3',
         },
       ],
     },
@@ -1453,7 +1458,7 @@ test('mergePokes sparse', () => {
                 hash: 'h1',
                 ast: {
                   table: 'issues',
-                  orderBy: [['id', 'asc']],
+                  orderBy: [['issue_id', 'asc']],
                 },
               },
             ],
@@ -1462,14 +1467,14 @@ test('mergePokes sparse', () => {
                 op: 'put',
                 tableName: 'issues',
 
-                value: {id: 'issue1', title: 'foo1'},
+                value: {['issue_id']: 'issue1', title: 'foo1'},
               },
               {
                 op: 'update',
                 tableName: 'issues',
-                id: {id: 'issue2'},
-                merge: {id: 'issue2', title: 'bar1'},
-                constrain: ['id', 'title'],
+                id: {['issue_id']: 'issue2'},
+                merge: {['issue_id']: 'issue2', title: 'bar1'},
+                constrain: ['issue_id', 'title'],
               },
             ],
           },
@@ -1484,7 +1489,7 @@ test('mergePokes sparse', () => {
                   hash: 'h2',
                   ast: {
                     table: 'labels',
-                    orderBy: [['id', 'asc']],
+                    orderBy: [['label_id', 'asc']],
                   },
                 },
               ],
@@ -1514,12 +1519,15 @@ test('mergePokes sparse', () => {
                 },
               ],
             },
-            rowsPatch: [{op: 'del', tableName: 'issues', id: {id: 'issue3'}}],
+            rowsPatch: [
+              {op: 'del', tableName: 'issues', id: {['issue_id']: 'issue3'}},
+            ],
           },
         ],
       },
     ],
     schema,
+    makeClientNames(schema),
   );
   expect(result).toEqual({
     baseCookie: '3',
@@ -1534,17 +1542,17 @@ test('mergePokes sparse', () => {
           key: 'g/h1',
           value: {
             table: 'issues',
-            orderBy: [['id', 'asc']],
+            orderBy: [['issue_id', 'asc']],
           } satisfies AST,
         },
         {
           op: 'put',
-          key: 'e/issues/issue1',
+          key: 'e/issue/issue1',
           value: {id: 'issue1', title: 'foo1'},
         },
         {
           op: 'update',
-          key: 'e/issues/issue2',
+          key: 'e/issue/issue2',
           merge: {id: 'issue2', title: 'bar1'},
           constrain: ['id', 'title'],
         },
@@ -1558,7 +1566,7 @@ test('mergePokes sparse', () => {
           key: 'd/c1/h2',
           value: {
             table: 'labels',
-            orderBy: [['id', 'asc']],
+            orderBy: [['label_id', 'asc']],
           },
         },
         {
@@ -1576,7 +1584,7 @@ test('mergePokes sparse', () => {
         },
         {
           op: 'del',
-          key: 'e/issues/issue3',
+          key: 'e/issue/issue3',
         },
       ],
       cookie: '5',
@@ -1618,6 +1626,7 @@ test('mergePokes throws error on cookie gaps', () => {
         },
       ],
       schema,
+      makeClientNames(schema),
     );
   }).to.throw();
 });
