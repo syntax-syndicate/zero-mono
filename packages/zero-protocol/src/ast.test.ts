@@ -1,5 +1,10 @@
 import {expect, test} from 'vitest';
 import {h64} from '../../shared/src/hash.ts';
+import {
+  number,
+  string,
+  table,
+} from '../../zero-schema/src/builder/table-builder.ts';
 import type {AST} from './ast.ts';
 import {astSchema, makeServerAST, normalizeAST} from './ast.ts';
 import {PROTOCOL_VERSION} from './protocol-version.ts';
@@ -257,7 +262,7 @@ test('makeServerAST', () => {
         {
           type: 'correlatedSubquery',
           related: {
-            correlation: {parentField: ['commentId'], childField: ['id']},
+            correlation: {parentField: ['id'], childField: ['issueId']},
             system: 'client',
             subquery: {
               table: 'comment',
@@ -270,7 +275,7 @@ test('makeServerAST', () => {
     },
     related: [
       {
-        correlation: {parentField: ['commentId'], childField: ['id']},
+        correlation: {parentField: ['id'], childField: ['issueId']},
         system: 'client',
         subquery: {
           table: 'comment',
@@ -293,29 +298,41 @@ test('makeServerAST', () => {
     ],
   };
 
-  const tableName = (table: string) => `${table}s`;
-  const columnName = (table: string, column: string) => {
-    if (column === 'id') {
-      return `${table}_id`;
-    }
-    if (table === 'issue') {
-      switch (column) {
-        case 'ownerId':
-          return 'owner_id';
-        case 'commentId':
-          return 'comment_id';
-      }
-    }
-    return column;
+  const tables = {
+    issue: table('issue')
+      .from('issues')
+      .columns({
+        id: string().from('issue_id'),
+        ownerId: string().from('owner_id'),
+        modified: number(),
+      })
+      .primaryKey('id')
+      .build(),
+
+    comment: table('comment')
+      .from('comments')
+      .columns({
+        id: string().from('comment_id'),
+        issueId: string().from('issue_id'),
+      })
+      .primaryKey('id')
+      .build(),
+
+    user: table('user')
+      .from('users')
+      .columns({
+        id: string().from('user_id'),
+      })
+      .primaryKey('id')
+      .build(),
   };
-  const normalized = makeServerAST(ast, tableName, columnName);
+  const normalized = makeServerAST(ast, tables);
 
   const json = JSON.stringify(normalized);
   expect(json).toMatch(/"issues"/);
   expect(json).toMatch(/"comments"/);
   expect(json).toMatch(/"users"/);
   expect(json).toMatch(/"issue_id"/);
-  expect(json).toMatch(/"comment_id"/);
   expect(json).toMatch(/"user_id"/);
   expect(json).toMatch(/"owner_id"/);
   expect(json).not.toMatch(/"issue"/);
@@ -365,10 +382,10 @@ test('makeServerAST', () => {
         {
           "correlation": {
             "childField": [
-              "comment_id",
+              "issue_id",
             ],
             "parentField": [
-              "comment_id",
+              "issue_id",
             ],
           },
           "hidden": undefined,
@@ -424,10 +441,10 @@ test('makeServerAST', () => {
             "related": {
               "correlation": {
                 "childField": [
-                  "comment_id",
+                  "issue_id",
                 ],
                 "parentField": [
-                  "comment_id",
+                  "issue_id",
                 ],
               },
               "subquery": {

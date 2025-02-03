@@ -11,6 +11,7 @@ import {defined} from '../../shared/src/arrays.ts';
 import {assert} from '../../shared/src/asserts.ts';
 import {must} from '../../shared/src/must.ts';
 import * as v from '../../shared/src/valita.ts';
+import type {TableSchema} from '../../zero-schema/src/table-schema.ts';
 import {rowSchema, type Row} from './data.ts';
 
 export const selectorSchema = v.string();
@@ -329,36 +330,58 @@ export type CorrelatedSubqueryCondition = {
 
 export type CorrelatedSubqueryConditionOperator = 'EXISTS' | 'NOT EXISTS';
 
+type NameMapper = {
+  tableName: (table: string) => string;
+  columnName: (table: string, column: string) => string;
+};
+
+const NULL_NAME_MAPPER: NameMapper = {
+  tableName: t => t,
+  columnName: (_, c) => c,
+};
+
+function makeNameMapper(tables: Record<string, TableSchema>): NameMapper {
+  const mustTable = (table: string) => {
+    const t = tables[table];
+    if (!table) {
+      throw new Error(`invalid table "${table}"`);
+    }
+    return t;
+  };
+
+  return {
+    tableName: (table: string) => mustTable(table).serverName ?? table,
+    columnName: (table: string, col: string) => {
+      const c = mustTable(table).columns[col];
+      if (!c) {
+        throw new Error(`invalid column "${col}" in table "${table}"`);
+      }
+      return c.serverName ?? col;
+    },
+  };
+}
+
 const normalizeCache = new WeakMap<AST, Required<AST>>();
 
 export function normalizeAST(ast: AST): Required<AST> {
   let normalized = normalizeCache.get(ast);
   if (!normalized) {
-    normalized = normalizeAndRemapNames(
-      ast,
-      // no name remapping
-      table => table,
-      (_, column) => column,
-    );
+    normalized = normalizeAndRemapNames(ast, NULL_NAME_MAPPER);
     normalizeCache.set(ast, normalized);
   }
   return normalized;
 }
 
-export function makeServerAST(
-  ast: AST,
-  tableName: (t: string) => string,
-  columnName: (t: string, c: string) => string,
-) {
-  return normalizeAndRemapNames(ast, tableName, columnName);
+export function makeServerAST(ast: AST, tables: Record<string, TableSchema>) {
+  return normalizeAndRemapNames(ast, makeNameMapper(tables));
 }
 
 function normalizeAndRemapNames(
   ast: AST,
-  tableName: (t: string) => string,
-  columnName: (t: string, c: string) => string,
+  nameMapper: NameMapper,
 ): Required<AST> {
   // Name mapping functions (e.g. to server names)
+  const {tableName, columnName} = nameMapper;
   const colName = (c: string) => columnName(ast.table, c);
   const key = (table: string, k: CompoundKey) => {
     const serverKey = k.map(col => columnName(table, col));
@@ -370,9 +393,7 @@ function normalizeAndRemapNames(
     schema: ast.schema,
     table: tableName(ast.table),
     alias: ast.alias,
-    where: where
-      ? sortedWhere(where, ast.table, tableName, columnName)
-      : undefined,
+    where: where ? sortedWhere(where, ast.table, nameMapper) : undefined,
     related: ast.related
       ? sortedRelated(
           ast.related.map(
@@ -383,11 +404,7 @@ function normalizeAndRemapNames(
                   childField: key(r.subquery.table, r.correlation.childField),
                 },
                 hidden: r.hidden,
-                subquery: normalizeAndRemapNames(
-                  r.subquery,
-                  tableName,
-                  columnName,
-                ),
+                subquery: normalizeAndRemapNames(r.subquery, nameMapper),
                 system: r.system,
               }) satisfies Required<CorrelatedSubquery>,
           ),
@@ -411,13 +428,21 @@ function normalizeAndRemapNames(
   return normalized;
 }
 
+export function makeServerCondition(
+  cond: Condition,
+  table: string,
+  tables: Record<string, TableSchema>,
+) {
+  return sortedWhere(cond, table, makeNameMapper(tables));
+}
+
 function sortedWhere(
   where: Condition,
   table: string,
-  tableName: (t: string) => string,
-  columnName: (t: string, c: string) => string,
+  nameMapper: NameMapper,
 ): Condition {
   // Name mapping functions (e.g. to server names)
+  const {columnName} = nameMapper;
   const condValue = (c: ConditionValue) =>
     c.type !== 'column' ? c : {...c, name: columnName(table, c.name)};
   const key = (table: string, k: CompoundKey) => {
@@ -437,7 +462,7 @@ function sortedWhere(
           parentField: key(table, correlation.parentField),
           childField: key(subquery.table, correlation.childField),
         },
-        subquery: normalizeAndRemapNames(subquery, tableName, columnName),
+        subquery: normalizeAndRemapNames(subquery, nameMapper),
       },
     };
   }
@@ -445,7 +470,7 @@ function sortedWhere(
   return {
     type: where.type,
     conditions: where.conditions
-      .map(w => sortedWhere(w, table, tableName, columnName))
+      .map(w => sortedWhere(w, table, nameMapper))
       .sort(cmpCondition),
   };
 }

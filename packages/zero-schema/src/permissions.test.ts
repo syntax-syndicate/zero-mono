@@ -8,8 +8,9 @@ import {definePermissions} from './permissions.ts';
 const {string} = column;
 
 const userSchema = table('user')
+  .from('users')
   .columns({
-    id: string(),
+    id: string().from('user_id'),
     login: string(),
     name: string(),
     avatar: string(),
@@ -49,7 +50,7 @@ test('permission rules create query ASTs', async () => {
 
   expect(config).toMatchInlineSnapshot(`
     {
-      "user": {
+      "users": {
         "cell": undefined,
         "row": {
           "delete": [
@@ -151,7 +152,7 @@ test('nested parameters', async () => {
 
   expect(config).toMatchInlineSnapshot(`
     {
-      "user": {
+      "users": {
         "cell": undefined,
         "row": {
           "delete": [
@@ -224,7 +225,7 @@ test('nested parameters', async () => {
                 "allow",
                 {
                   "left": {
-                    "name": "id",
+                    "name": "user_id",
                     "type": "column",
                   },
                   "op": "=",

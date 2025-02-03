@@ -137,12 +137,7 @@ export class QueryManager {
     let entry = this.#queries.get(astHash);
     this.#recentQueries.delete(astHash);
     if (!entry) {
-      const serverAST = makeServerAST(
-        normalized,
-        table => must(this.#tables[table]).serverName ?? table,
-        (table, col) =>
-          must(this.#tables[table].columns[col]).serverName ?? col,
-      );
+      const serverAST = makeServerAST(normalized, this.#tables);
       entry = {
         normalized: serverAST,
         count: 1,
