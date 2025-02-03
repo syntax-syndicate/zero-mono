@@ -14,8 +14,9 @@ import type {Condition} from 'zero-protocol/src/ast.js';
 
 // Table definitions
 const user = table('user')
+  .from('users')
   .columns({
-    id: string(),
+    id: string().from('user_id'),
     login: string(),
     name: string().optional(),
     avatar: string(),
@@ -24,8 +25,9 @@ const user = table('user')
   .primaryKey('id');
 
 const issue = table('issue')
+  .from('issues')
   .columns({
-    id: string(),
+    id: string().from('issue_id'),
     shortID: number().optional(),
     title: string(),
     open: boolean(),
