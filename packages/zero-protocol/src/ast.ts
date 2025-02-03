@@ -330,72 +330,32 @@ export type CorrelatedSubqueryCondition = {
 
 export type CorrelatedSubqueryConditionOperator = 'EXISTS' | 'NOT EXISTS';
 
-type NameMapper = {
-  tableName: (table: string) => string;
-  columnName: (table: string, column: string) => string;
-};
-
-const NULL_NAME_MAPPER: NameMapper = {
-  tableName: t => t,
-  columnName: (_, c) => c,
-};
-
-function makeNameMapper(tables: Record<string, TableSchema>): NameMapper {
-  const mustTable = (table: string) => {
-    const t = tables[table];
-    if (!table) {
-      throw new Error(`invalid table "${table}"`);
-    }
-    return t;
-  };
-
-  return {
-    tableName: (table: string) => mustTable(table).serverName ?? table,
-    columnName: (table: string, col: string) => {
-      const c = mustTable(table).columns[col];
-      if (!c) {
-        throw new Error(`invalid column "${col}" in table "${table}"`);
-      }
-      return c.serverName ?? col;
-    },
-  };
+interface ASTTransform {
+  tableName(orig: string): string;
+  columnName(origTable: string, origColumn: string): string;
+  related(subqueries: CorrelatedSubquery[]): readonly CorrelatedSubquery[];
+  where(cond: Condition): Condition | undefined;
+  // conjunction or disjunction, called when traversing the return value of where()
+  conditions(conds: Condition[]): readonly Condition[];
 }
 
-const normalizeCache = new WeakMap<AST, Required<AST>>();
-
-export function normalizeAST(ast: AST): Required<AST> {
-  let normalized = normalizeCache.get(ast);
-  if (!normalized) {
-    normalized = normalizeAndRemapNames(ast, NULL_NAME_MAPPER);
-    normalizeCache.set(ast, normalized);
-  }
-  return normalized;
-}
-
-export function makeServerAST(ast: AST, tables: Record<string, TableSchema>) {
-  return normalizeAndRemapNames(ast, makeNameMapper(tables));
-}
-
-function normalizeAndRemapNames(
-  ast: AST,
-  nameMapper: NameMapper,
-): Required<AST> {
+function transformAST(ast: AST, transform: ASTTransform): Required<AST> {
   // Name mapping functions (e.g. to server names)
-  const {tableName, columnName} = nameMapper;
+  const {tableName, columnName} = transform;
   const colName = (c: string) => columnName(ast.table, c);
   const key = (table: string, k: CompoundKey) => {
     const serverKey = k.map(col => columnName(table, col));
     return mustCompoundKey(serverKey);
   };
 
-  const where = flattened(ast.where);
-  const normalized = {
+  const where = ast.where ? transform.where(ast.where) : undefined;
+  const transformed = {
     schema: ast.schema,
     table: tableName(ast.table),
     alias: ast.alias,
-    where: where ? sortedWhere(where, ast.table, nameMapper) : undefined,
+    where: where ? transformWhere(where, ast.table, transform) : undefined,
     related: ast.related
-      ? sortedRelated(
+      ? transform.related(
           ast.related.map(
             r =>
               ({
@@ -404,7 +364,7 @@ function normalizeAndRemapNames(
                   childField: key(r.subquery.table, r.correlation.childField),
                 },
                 hidden: r.hidden,
-                subquery: normalizeAndRemapNames(r.subquery, nameMapper),
+                subquery: transformAST(r.subquery, transform),
                 system: r.system,
               }) satisfies Required<CorrelatedSubquery>,
           ),
@@ -425,24 +385,16 @@ function normalizeAndRemapNames(
     orderBy: ast.orderBy?.map(([col, dir]) => [colName(col), dir] as const),
   };
 
-  return normalized;
+  return transformed;
 }
 
-export function makeServerCondition(
-  cond: Condition,
-  table: string,
-  tables: Record<string, TableSchema>,
-) {
-  return sortedWhere(cond, table, makeNameMapper(tables));
-}
-
-function sortedWhere(
+function transformWhere(
   where: Condition,
   table: string,
-  nameMapper: NameMapper,
+  transform: ASTTransform,
 ): Condition {
   // Name mapping functions (e.g. to server names)
-  const {columnName} = nameMapper;
+  const {columnName} = transform;
   const condValue = (c: ConditionValue) =>
     c.type !== 'column' ? c : {...c, name: columnName(table, c.name)};
   const key = (table: string, k: CompoundKey) => {
@@ -462,16 +414,73 @@ function sortedWhere(
           parentField: key(table, correlation.parentField),
           childField: key(subquery.table, correlation.childField),
         },
-        subquery: normalizeAndRemapNames(subquery, nameMapper),
+        subquery: transformAST(subquery, transform),
       },
     };
   }
 
   return {
     type: where.type,
-    conditions: where.conditions
-      .map(w => sortedWhere(w, table, nameMapper))
-      .sort(cmpCondition),
+    conditions: transform.conditions(
+      where.conditions.map(c => transformWhere(c, table, transform)),
+    ),
+  };
+}
+
+const normalizeCache = new WeakMap<AST, Required<AST>>();
+
+const NORMALIZE_TRANSFORM: ASTTransform = {
+  tableName: t => t,
+  columnName: (_, c) => c,
+  related: sortedRelated,
+  where: flattened,
+  conditions: c => c.sort(cmpCondition),
+};
+
+export function normalizeAST(ast: AST): Required<AST> {
+  let normalized = normalizeCache.get(ast);
+  if (!normalized) {
+    normalized = transformAST(ast, NORMALIZE_TRANSFORM);
+    normalizeCache.set(ast, normalized);
+  }
+  return normalized;
+}
+
+export function makeServerAST(ast: AST, tables: Record<string, TableSchema>) {
+  return transformAST(ast, makeRenameTransform(tables));
+}
+
+export function makeServerCondition(
+  cond: Condition,
+  table: string,
+  tables: Record<string, TableSchema>,
+) {
+  return transformWhere(cond, table, makeRenameTransform(tables));
+}
+
+function makeRenameTransform(
+  tables: Record<string, TableSchema>,
+): ASTTransform {
+  const mustTable = (table: string) => {
+    const t = tables[table];
+    if (!table) {
+      throw new Error(`invalid table "${table}"`);
+    }
+    return t;
+  };
+
+  return {
+    tableName: (table: string) => mustTable(table).serverName ?? table,
+    columnName: (table: string, col: string) => {
+      const c = mustTable(table).columns[col];
+      if (!c) {
+        throw new Error(`invalid column "${col}" in table "${table}"`);
+      }
+      return c.serverName ?? col;
+    },
+    related: r => r,
+    where: w => w,
+    conditions: c => c,
   };
 }
 
@@ -559,10 +568,7 @@ function cmpRelated(a: CorrelatedSubquery, b: CorrelatedSubquery): number {
  * Also flattens singleton Conjunctions regardless of operator, and removes
  * empty Conjunctions.
  */
-function flattened<T extends Condition>(cond: T | undefined): T | undefined {
-  if (cond === undefined) {
-    return undefined;
-  }
+function flattened(cond: Condition): Condition | undefined {
   if (cond.type === 'simple' || cond.type === 'correlatedSubquery') {
     return cond;
   }
@@ -576,12 +582,12 @@ function flattened<T extends Condition>(cond: T | undefined): T | undefined {
     case 0:
       return undefined;
     case 1:
-      return conditions[0] as T;
+      return conditions[0];
     default:
       return {
         type: cond.type,
         conditions,
-      } as unknown as T;
+      };
   }
 }
 

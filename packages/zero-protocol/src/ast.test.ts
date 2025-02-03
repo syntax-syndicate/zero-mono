@@ -360,28 +360,6 @@ test('makeServerAST', () => {
         {
           "correlation": {
             "childField": [
-              "user_id",
-            ],
-            "parentField": [
-              "owner_id",
-            ],
-          },
-          "hidden": undefined,
-          "subquery": {
-            "alias": "alias1",
-            "limit": undefined,
-            "orderBy": undefined,
-            "related": undefined,
-            "schema": undefined,
-            "start": undefined,
-            "table": "users",
-            "where": undefined,
-          },
-          "system": "client",
-        },
-        {
-          "correlation": {
-            "childField": [
               "issue_id",
             ],
             "parentField": [
@@ -397,6 +375,28 @@ test('makeServerAST', () => {
             "schema": undefined,
             "start": undefined,
             "table": "comments",
+            "where": undefined,
+          },
+          "system": "client",
+        },
+        {
+          "correlation": {
+            "childField": [
+              "user_id",
+            ],
+            "parentField": [
+              "owner_id",
+            ],
+          },
+          "hidden": undefined,
+          "subquery": {
+            "alias": "alias1",
+            "limit": undefined,
+            "orderBy": undefined,
+            "related": undefined,
+            "schema": undefined,
+            "start": undefined,
+            "table": "users",
             "where": undefined,
           },
           "system": "client",
