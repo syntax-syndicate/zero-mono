@@ -1,11 +1,13 @@
+CREATE SCHEMA IF NOT EXISTS mojo;
 DROP TABLE IF EXISTS "users",
 "issues",
 "comment",
 "label",
 "issueLabel",
 "emoji",
+"mojo"."emoji",
 "userPref",
-"zero.schemaVersions" CASCADE;
+"zero"."schemaVersions" CASCADE;
 
 -- users
 
@@ -150,9 +152,8 @@ CREATE TABLE "issueLabel" (
 );
 
 -- emoji
-
-CREATE TABLE emoji (
-    "id" VARCHAR PRIMARY KEY,
+CREATE TABLE mojo.emoji (
+    "idz_yo" VARCHAR PRIMARY KEY,
     "value" VARCHAR NOT NULL,
     "annotation" VARCHAR,
     -- The PK of the "subject" (either issues or comment) that the emoji is attached to
@@ -164,8 +165,8 @@ CREATE TABLE emoji (
 
     UNIQUE ("subjectID", "creatorID", "value")
 );
-CREATE INDEX emoji_created_idx ON emoji (created);
-CREATE INDEX emoji_subject_id_idx ON emoji ("subjectID");
+CREATE INDEX emoji_created_idx ON mojo.emoji (created);
+CREATE INDEX emoji_subject_id_idx ON mojo.emoji ("subjectID");
 
 CREATE OR REPLACE FUNCTION emoji_check_subject_id()
 RETURNS TRIGGER AS $$
@@ -186,7 +187,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER emoji_check_subject_id_update_trigger
-BEFORE INSERT OR UPDATE ON emoji
+BEFORE INSERT OR UPDATE ON mojo.emoji
 FOR EACH ROW
 EXECUTE FUNCTION emoji_check_subject_id();
 
@@ -199,7 +200,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER emoji_set_created_on_insert_trigger
-BEFORE INSERT ON emoji
+BEFORE INSERT ON mojo.emoji
 FOR EACH ROW
 EXECUTE FUNCTION emoji_set_created_on_insert();
 
@@ -207,7 +208,7 @@ EXECUTE FUNCTION emoji_set_created_on_insert();
 CREATE OR REPLACE FUNCTION delete_emoji_on_issue_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM emoji WHERE "subjectID" = OLD.id;
+    DELETE FROM mojo.emoji WHERE "subjectID" = OLD.id;
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
@@ -221,7 +222,7 @@ EXECUTE FUNCTION delete_emoji_on_issue_delete();
 CREATE OR REPLACE FUNCTION delete_emoji_on_comment_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM emoji WHERE "subjectID" = OLD.id;
+    DELETE FROM mojo.emoji WHERE "subjectID" = OLD.id;
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
@@ -315,5 +316,8 @@ CREATE INDEX issue_created_idx ON issues (created);
 CREATE INDEX issue_open_modified_idx ON issues (open, modified);
 
 CREATE INDEX comment_issueid_idx ON "comment" ("issueID");
+
+
+CREATE PUBLICATION zero_all_the_data FOR TABLES IN SCHEMA public, TABLES IN SCHEMA mojo;
 
 VACUUM;

@@ -73,8 +73,9 @@ const issueLabel = table('issueLabel')
   .primaryKey('issueID', 'labelID');
 
 const emoji = table('emoji')
+  .from('mojo.emoji')
   .columns({
-    id: string(),
+    id: string().from('idz_yo'),
     value: string(),
     annotation: string(),
     subjectID: string(),
