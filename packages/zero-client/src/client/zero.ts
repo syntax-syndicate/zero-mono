@@ -56,11 +56,15 @@ import type {
   CustomMutation,
   PushMessage,
 } from '../../../zero-protocol/src/push.ts';
-import {CRUD_MUTATION_NAME} from '../../../zero-protocol/src/push.ts';
+import {CRUD_MUTATION_NAME, mapCRUD} from '../../../zero-protocol/src/push.ts';
 import type {QueriesPatchOp} from '../../../zero-protocol/src/queries-patch.ts';
 import type {NullableVersion} from '../../../zero-protocol/src/version.ts';
 import {nullableVersionSchema} from '../../../zero-protocol/src/version.ts';
 import type {Schema} from '../../../zero-schema/src/builder/schema-builder.ts';
+import {
+  type NameMapper,
+  clientToServer,
+} from '../../../zero-schema/src/name-mapper.ts';
 import {newQuery} from '../../../zql/src/query/query-impl.ts';
 import type {Query} from '../../../zql/src/query/query.ts';
 import {nanoid} from '../util/nanoid.ts';
@@ -87,6 +91,7 @@ import {
   appendPath,
   toWSString,
 } from './http-string.ts';
+import {IVMSourceRepo} from './ivm-source-repo.ts';
 import {ENTITIES_KEY_PREFIX} from './keys.ts';
 import {type LogOptions, createLogOptions} from './log-options.ts';
 import {
@@ -265,6 +270,8 @@ export class Zero<
 
   readonly #pokeHandler: PokeHandler;
   readonly #queryManager: QueryManager;
+  readonly #ivmSources: IVMSourceRepo;
+  readonly #clientToServer: NameMapper;
 
   /**
    * The queries we sent when inside the sec-protocol header when establishing a connection.
@@ -409,6 +416,7 @@ export class Zero<
     const replicacheMutators = {
       [CRUD_MUTATION_NAME]: makeCRUDMutator(schema),
     };
+    this.#ivmSources = new IVMSourceRepo(schema.tables);
 
     for (const [namespace, mutatorsForNamespace] of Object.entries(
       options.mutators ?? {},
@@ -417,7 +425,7 @@ export class Zero<
         mutatorsForNamespace as Record<string, CustomMutatorImpl<Schema>>,
       )) {
         (replicacheMutators as MutatorDefs)[customMutatorKey(namespace, name)] =
-          makeReplicacheMutator(mutator, schema);
+          makeReplicacheMutator(mutator, schema, this.#ivmSources);
       }
     }
 
@@ -514,9 +522,10 @@ export class Zero<
       rep.experimentalWatch.bind(rep),
       maxRecentQueries,
     );
+    this.#clientToServer = clientToServer(schema.tables);
 
     this.#zeroContext = new ZeroContext(
-      schema.tables,
+      this.#ivmSources.main,
       (ast, gotCallback) => this.#queryManager.add(ast, gotCallback),
       batchViewUpdates,
     );
@@ -1185,7 +1194,7 @@ export class Zero<
               id: m.id,
               clientID: m.clientID,
               name: m.name,
-              args: [m.args as CRUDMutationArg],
+              args: [mapCRUD(m.args as CRUDMutationArg, this.#clientToServer)],
             } satisfies CRUDMutation)
           : ({
               type: MutationType.Custom,
