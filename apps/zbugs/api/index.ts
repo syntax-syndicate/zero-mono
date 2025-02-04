@@ -63,12 +63,12 @@ fastify.get<{
 
   let userId = nanoid();
   const existingUserId =
-    await sql`SELECT id FROM "user" WHERE "githubID" = ${userDetails.data.id}`;
+    await sql`SELECT user_id FROM "users" WHERE "githubID" = ${userDetails.data.id}`;
   if (existingUserId.length > 0) {
-    userId = existingUserId[0].id;
+    userId = existingUserId[0].user_id;
   } else {
-    await sql`INSERT INTO "user"
-    ("id", "login", "name", "avatar", "githubID") VALUES (
+    await sql`INSERT INTO "users"
+    ("user_id", "login", "name", "avatar", "githubID") VALUES (
       ${userId},
       ${userDetails.data.login},
       ${userDetails.data.name},
@@ -77,7 +77,7 @@ fastify.get<{
     )`;
   }
 
-  const userRows = await sql`SELECT * FROM "user" WHERE "id" = ${userId}`;
+  const userRows = await sql`SELECT * FROM "users" WHERE "user_id" = ${userId}`;
 
   const jwtPayload = {
     sub: userId,
